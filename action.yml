@@ -17,6 +17,10 @@ inputs:
     description: 'Language for code review comments: "vietnamese" or "english"'
     required: false
     default: 'vietnamese'
+  rules-path:
+    description: 'Đường dẫn đến thư mục chứa các file .md rules review'
+    required: false
+    default: '.github/ai-review-rules'
 
 runs:
   using: 'composite'

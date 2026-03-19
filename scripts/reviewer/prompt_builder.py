@@ -8,6 +8,7 @@ Handles loading of:
 
 import os
 import textwrap
+from pathlib import Path
 
 from .config import Config
 from .diff_chunker import DiffChunker, DiffChunk
@@ -112,7 +113,7 @@ class PromptBuilder:
         Returns:
             Combined coding rules text from all rule files or fallback minimal rules
         """
-        rules_dir = os.path.join(self.script_dir, "rule")
+        rules_dir = Config.get_rules_path()
 
         try:
             # Get all markdown files in the rule directory

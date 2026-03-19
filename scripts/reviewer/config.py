@@ -4,6 +4,7 @@ Handles environment variables and constants used across the application.
 """
 
 import os
+from pathlib import Path
 
 
 class Config:
@@ -15,6 +16,7 @@ class Config:
     GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
     GITHUB_REF = os.getenv("GITHUB_REF", "")
     REVIEW_LANGUAGE = os.getenv("REVIEW_LANGUAGE", "vietnamese").lower()
+    RULES_DIR = os.getenv("INPUT_RULES_PATH", ".github/ai-review-rules")
 
     # OpenRouter model configuration
     # Model is controlled by project maintainers, users cannot override
@@ -30,14 +32,14 @@ class Config:
     # Constants
     MAX_DIFF_LENGTH = 100000  # Limit diff size to avoid huge token payloads (increased from 12k)
     MAX_COMMENT_LENGTH = 60000  # GitHub has 65,536 char limit, use 60k for safety
-    COMMENT_HEADER = "🤖 **AI Code Review - Flutter (OpenRouter)**\n\n"
+    COMMENT_HEADER = "🤖 **AI Code Review (OpenRouter)**\n\n"
 
     # Diff processing settings
     WARN_DIFF_TRUNCATED = True  # Warn in prompt if diff was truncated
 
     # OpenRouter generation settings
     GENERATION_CONFIG = {
-        "temperature": 0.7,
+        "temperature": 0.6,
         "top_p": 0.95,
         "max_output_tokens": 32000,  # Max tokens for response
     }
@@ -50,6 +52,12 @@ class Config:
     MAX_RETRIES = 2
     INITIAL_RETRY_DELAY = 5  # seconds
     RETRY_BACKOFF_MULTIPLIER = 2
+
+    @classmethod
+    def get_rules_path(cls) -> Path:
+        """Lấy đường dẫn tuyệt đối đến thư mục chứa rules."""
+        workspace_path = os.getenv("GITHUB_WORKSPACE", ".")
+        return Path(workspace_path) / cls.RULES_DIR
 
     @classmethod
     def validate(cls) -> list[str]:
@@ -71,6 +79,16 @@ class Config:
 
         if cls.REVIEW_LANGUAGE not in ['vietnamese', 'english']:
             errors.append(f"Invalid REVIEW_LANGUAGE: {cls.REVIEW_LANGUAGE}. Must be 'vietnamese' or 'english'")
+
+        rules_path = cls.get_rules_path()
+
+        if not rules_path.exists() or not rules_path.is_dir():
+            errors.append(f"Rules directory not found at: {cls.RULES_DIR}")
+        else:
+            # Tìm tất cả file kết thúc bằng .md ở ngay trong thư mục này
+            md_files = list(rules_path.glob("*.md"))
+            if not md_files:
+                errors.append(f"Rules directory '{cls.RULES_DIR}' contains no markdown (.md) files.")
 
         return errors
 

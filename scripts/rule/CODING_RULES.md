@@ -1,402 +1,125 @@
-# CODING RULES
+# CODING_RULES.md - PubStar iOS SDK
 
-Quy tắc code cho dự án Flutter - Clean Architecture với GetX state management.
-
----
-
-## 1. NAMING CONVENTIONS
-
-### File Naming (snake_case)
-
-```
-# Screens
-{feature_name}_screen.dart          → setting_screen.dart
-
-# Controllers
-{feature_name}_controller.dart      → setting_controller.dart
-
-# Widgets
-{widget_name}_widget.dart           → button_widget.dart
-
-# Dialogs
-dialog_{purpose}.dart               → dialog_delete.dart
-
-# Entities
-{entity_name}_entity.dart           → auth_entity.dart
-{entity_name}.dart (core)           → user.dart
-
-# Models
-{model_name}_model.dart             → user_model.dart
-{model_name}_response.dart          → user_response.dart
-
-# Use Cases
-{feature_name}_usecase.dart         → setting_usecase.dart
-
-# Repositories
-{feature_name}_repository.dart      → setting_repository.dart
-{feature_name}_repository_impl.dart → setting_repository_impl.dart
-
-# Mappers
-{entity_name}_mapper.dart           → user_auth_mapper.dart
-```
-
-### Class Naming (PascalCase)
-
-```dart
-// Screens
-class SettingScreen extends StatelessWidget {}
-
-// Controllers
-class SettingController extends GetxController {}
-
-// Widgets
-class ButtonWidget extends StatefulWidget {}
-
-// Entities
-@immutable
-class AuthEntity {
-  const AuthEntity({required this.accessToken});
-  final String accessToken;
-}
-
-// Models
-class UserModel extends User {
-  factory UserModel.fromJson(Map<String, dynamic> json) {...}
-}
-
-// Repositories
-abstract class SettingRepository {...}
-class SettingRepositoryImpl implements SettingRepository {...}
-```
-
-### Variables & Methods (camelCase)
-
-```dart
-// Variables
-String userName = 'John';
-bool isLoading = false;
-
-// GetX Observables
-final RxBool isNotificationEnabled = true.obs;
-Rx<User?> user = Rx<User?>(null);
-
-// Private
-final ApiService _apiService;
-
-// Methods (verb-first)
-void onTapLanguage() {}
-Future<void> updateUserStatus() async {}
-bool validateEmail(String email) {}
-```
+Tài liệu này quy định các tiêu chuẩn viết code cho dự án PubStar iOS SDK bằng ngôn ngữ Swift. Mọi pull request cần tuân thủ các quy tắc này để đảm bảo tính đồng nhất, dễ bảo trì và tối ưu cho các công cụ tự động (như SwiftLint, SonarQube).
 
 ---
 
-## 2. ASSETS MANAGEMENT
+## 1. Naming Conventions (Quy tắc đặt tên)
 
-### ✅ ĐÚNG - Type-safe với flutter_gen
+* **PascalCase** cho tên `class`, `struct`, `enum`, `protocol`.
+* **camelCase** cho tên biến (`variable`), hằng số (`constant`), hàm (`function`).
+* **Boolean:** Biến kiểu `Bool` nên được đặt tên như một lời khẳng định, thường sử dụng các tiền tố như `is`, `has`, `should`, `can`.
+    ```swift
+    // Tốt
+    var isReadyToLoadAd: Bool
+    var hasUserConsent: Bool
 
-```dart
-import 'package:base_project/core/gen/assets.gen.dart';
+    // Tránh
+    var ready: Bool
+    ```
+* **Không sử dụng tiền tố (Prefix) cho Swift:** Khác với Objective-C (thường dùng tiền tố như `PS`), Swift có hệ thống Module Namespace. Không thêm tiền tố vào tên class/struct trừ khi class đó cần expose riêng cho Objective-C (`@objc(PSAdManager)`).
 
-// SVG Icons
-SvgPicture.asset(Assets.icons.iconsSettings.iconApple)
-SvgPicture.asset(Assets.icons.iconBack)
+## 2. Access Control (Kiểm soát truy cập)
 
-// Images
-Assets.images.logoTqc.image()
+Vì PubStar là một SDK, việc kiểm soát những gì app tích hợp có thể nhìn thấy là tối quan trọng để tránh xung đột và lộ logic nội bộ.
 
-// Fonts
-Assets.fonts.sourceSans3Bold
-```
+* Mặc định mọi class/struct/function nên để là `internal` (không cần viết từ khóa).
+* Chỉ sử dụng `public` cho các API mà PubStar SDK muốn cung cấp cho developer bên ngoài sử dụng.
+* Chỉ sử dụng `open` nếu muốn cho phép developer bên ngoài kế thừa class hoặc override function đó (hạn chế tối đa để tránh side-effect).
+* Sử dụng `private` hoặc `fileprivate` cho các thuộc tính và hàm xử lý logic nội bộ.
 
-### ❌ SAI - Hardcode string path
+## 3. Code Structure & Organization (Tổ chức code)
 
-```dart
-// KHÔNG BAO GIỜ làm thế này
-SvgPicture.asset('assets/icons/icons_settings/icon_apple.svg')
-Image.asset('assets/images/logo_tqc.png')
-```
-
-### Asset Organization
-
-```
-# Icons (snake_case)
-assets/icons/icon_back.svg
-  → Assets.icons.iconBack
-
-# Nested folders
-assets/icons/icons_settings/icon_apple.svg
-  → Assets.icons.iconsSettings.iconApple
-
-# Images (snake_case)
-assets/images/logo_tqc.png
-  → Assets.images.logoTqc
-
-# Fonts (PascalCase-PascalCase)
-assets/fonts/SourceSans3-Bold.ttf
-```
-
-**Quy tắc:** snake_case file → camelCase property, nested folders → nested classes
-
----
-
-## 3. LOCALIZATION
-
-### Translation Files
-
-```
-assets/translations/
-  ├── en-US.json  (lowercase-UPPERCASE)
-  ├── vi-VN.json
-  └── ja-JP.json
-```
-
-### Translation Keys (snake_case, hierarchical)
-
-```json
-{
-  "app": { "name": "OIO Track" },
-  "common": { "save": "Save", "cancel": "Cancel" },
-  "auth": {
-    "sign_in": "Sign In",
-    "email": "Email",
-    "welcome_user": "Welcome, {name}"
-  },
-  "settings": { "language": "Language" },
-  "validation": { "email_required": "Please enter email" },
-  "messages": { "success": "Success" }
-}
-```
-
-**Categories:** `app.*`, `common.*`, `auth.*`, `settings.*`, `validation.*`, `messages.*`
-
-### Usage
-
-```dart
-import 'package:easy_localization/easy_localization.dart';
-
-// Basic
-Text(context.tr('settings.language'))
-ButtonWidget(text: context.tr('common.save'))
-
-// Interpolation
-Text(context.tr('auth.welcome_user', namedArgs: {'name': userName}))
-
-// ✅ Luôn dùng context.tr() cho UI text
-// ❌ Không hardcode string
-// ❌ Không dùng camelCase cho keys
-```
-
----
-
-## 4. ERROR HANDLING
-
-### Custom Failures
-
-```dart
-// Location: lib/core/errors/
-
-abstract class Failure implements Exception {
-  Failure({this.message = ''});
-  final String message;
-}
-
-// Concrete types
-class NetworkException extends Failure {...}
-class ServerFailure extends Failure {...}
-class ServerTimeOut extends Failure {...}
-class ServerNotFound extends Failure {...}
-class UnknownException extends Failure {...}
-```
-
-### Either<Failure, T> Pattern
-
-```dart
-import 'package:dartz/dartz.dart';
-
-// Repository Interface
-abstract class SettingRepository {
-  Future<Either<Failure, User>> updateAccount(String? name, String? avatar);
-}
-
-// Implementation
-@override
-Future<Either<Failure, User>> updateAccount(String? name, String? avatar) async {
-  try {
-    final response = await apiService.put(AppUrl.updateAccount, data: {...});
-
-    if (response['error_code'] == 0) {
-      return Right(UserModel.fromJson(response['data']));
+* **Protocol Conformance:** Không implement trực tiếp các protocol vào định nghĩa chính của class. Hãy sử dụng `extension` để nhóm các hàm của protocol đó lại.
+    ```swift
+    class AdLoader {
+        // Logic chính của loader
     }
 
-    return Left(ServerFailure(message: response['message']));
-  } catch (e) {
-    return Left(Failure(message: e.toString()));
-  }
-}
-```
+    // MARK: - NetworkDelegate
+    extension AdLoader: NetworkDelegate {
+        // Các hàm của NetworkDelegate
+    }
+    ```
+* **MARK Comments:** Luôn sử dụng `// MARK: - ` để chia nhỏ các vùng code trong một file lớn (Properties, Initialization, Public Methods, Private Methods). Các bot refactor có thể dựa vào đây để sắp xếp lại code.
 
-### Controller Error Handling
+## 4. Memory Management (Quản lý bộ nhớ)
 
-```dart
-// Basic pattern
-Future<void> updateAccount() async {
-  final result = await useCase.updateAccount(name, avatar);
-
-  result.fold(
-    (failure) => CustomSnackBar.showError(message: failure.message),
-    (user) {
-      this.user.value = user;
-      CustomSnackBar.showSuccess(message: 'Profile updated');
-    },
-  );
-}
-
-// With Loading
-Future<void> deleteAccount() async {
-  Loading.show();
-
-  try {
-    final result = await useCase.deleteAccount();
-
-    result.fold(
-      (failure) => CustomSnackBar.showError(message: failure.message),
-      (success) => Get.offAllNamed(RouterName.signIn),
-    );
-  } finally {
-    Loading.hide();
-  }
-}
-```
-
-### User Feedback
-
-```dart
-// CustomSnackBar types
-CustomSnackBar.showError(message: 'Login failed');      // Red with X
-CustomSnackBar.showSuccess(message: 'Account created'); // Green with ✓
-CustomSnackBar.showWarning(message: 'Check input');     // Yellow
-CustomSnackBar.showInfo(message: 'Coming soon');        // Blue
-
-// Loading
-Loading.show();  // Non-dismissible
-Loading.hide();
-```
-
-### Best Practices
-
-**✅ DO:**
-- Return `Either<Failure, T>` trong repositories
-- Sử dụng specific Failure types
-- Hiển thị Loading trước async operations
-- Hide loading trong finally block
-- Handle cả success và failure trong fold()
-
-**❌ DON'T:**
-- Throw raw exceptions ra UI layer
-- Hardcode error messages
-- Quên hide loading dialog
-- Ignore failure case
-- Show multiple loading cùng lúc
+* Tránh Retain Cycles (Memory Leak) trong closures. Luôn phân tích xem có cần sử dụng `[weak self]` hoặc `[unowned self]` khi gọi closure bất đồng bộ không. Đối với các thao tác mạng, `[weak self]` là lựa chọn an toàn nhất.
+    ```swift
+    networkManager.fetchAd { [weak self] response in
+        guard let self = self else { return }
+        self.process(response)
+    }
+    ```
 
 ---
 
-## 5. ADDITIONAL PATTERNS
+## 5. Error Handling Strategies (Chiến lược xử lý lỗi)
 
-### Text Styling
+Việc thiết kế API trả về lỗi nhất quán giúp các developer tích hợp SDK dễ dàng handle các tình huống exception. Dưới đây là hai phương pháp được chấp nhận trong dự án, tùy thuộc vào context của API.
 
-```dart
-import 'package:base_project/core/constants/app_text_style.dart';
+### Phương án 1: Sử dụng `throws` (Swift Native Error Handling)
+Sử dụng từ khóa `throws` kết hợp với `do-catch`. Đây là cách chuẩn nhất của Swift hiện tại, đặc biệt phù hợp khi kết hợp với `async/await`.
 
-context.textStyle.bodyLG.medium
-context.textStyle.headingMD.bold.textPrimary
-context.textStyle.bodySM.regular.textSecondary
+* **Ví dụ:**
+    ```swift
+    public func initializeSDK(apiKey: String) async throws {
+        guard !apiKey.isEmpty else {
+            throw PubStarError.invalidAPIKey
+        }
+        // Logic khởi tạo
+    }
+    ```
 
-// Sizes: heading2XL(64), headingXL(40), headingLG(32), headingMD(24),
-//        headingSM(20), headingXS(18), bodyLG(16), bodyMD(14), bodySM(12)
-// Weights: .bold, .semiBold, .medium, .regular
-// Colors: .textPrimary, .textSecondary, .textBrandPrimary
-```
+### Phương án 2: Sử dụng `Result<T, Error>` Type
+Sử dụng kiểu `Result` cho các API sử dụng mô hình callback (closure) truyền thống.
 
-### Spacing
+* **Ví dụ:**
+    ```swift
+    public func fetchAdToken(completion: @escaping (Result<String, PubStarError>) -> Void) {
+        if let token = cachedToken {
+            completion(.success(token))
+        } else {
+            completion(.failure(.tokenGenerationFailed))
+        }
+    }
+    ```
 
-```dart
-import 'package:base_project/core/constants/values.dart';
+### Bảng so sánh ưu và nhược điểm
 
-AppValue.hSpaceTiny    // 8px width
-AppValue.hSpaceSmall   // 16px
-AppValue.vSpaceSmall   // 16px height
-AppValue.hSpace(12)    // Custom
-```
-
-### Colors & Router
-
-```dart
-import 'package:base_project/core/constants/colors.dart';
-import 'package:base_project/core/constants/router_name.dart';
-
-AppColors.bgrPrimary
-AppColors.textPrimary
-
-RouterName.home      // '/home'
-Get.toNamed(RouterName.signIn);
-Get.offAllNamed(RouterName.home);
-```
+| Tiêu chí | Phương án 1 (`throws` & `async/await`) | Phương án 2 (`Result` type với Closure) |
+| :--- | :--- | :--- |
+| **Ưu điểm** | Code sạch, đọc tuần tự như code đồng bộ. Khuyên dùng bởi Apple cho SDK hiện đại. Tương thích tốt với bot phân tích luồng. | Rõ ràng về mặt kiểu dữ liệu trả về. Tương thích tốt với các dự án cũ chưa áp dụng concurrency mới. |
+| **Nhược điểm** | Yêu cầu base iOS target cao hơn (iOS 13+). Khó tương thích ngược với code Objective-C. | Dễ dẫn đến callback hell nếu có nhiều request lồng nhau. |
 
 ---
 
-## 6. COMMON MISTAKES
+## 6. Code Formatting Standardization (Công cụ chuẩn hóa Code)
 
-### ❌ Asset Hardcoding
-```dart
-Image.asset('assets/images/logo.png')        // WRONG
-Assets.images.logo.image()                   // CORRECT
-```
+Dự án áp dụng các công cụ tự động để đảm bảo code luôn tuân thủ rule trước khi được merge vào nhánh chính thông qua CI/CD.
 
-### ❌ String Hardcoding
-```dart
-Text('Settings')                             // WRONG
-Text(context.tr('settings.settings'))        // CORRECT
-```
+### Lựa chọn 1: SwiftLint
+Công cụ phân tích tĩnh (Static analysis tool). Nó kiểm tra code dựa trên các rule được cấu hình (ví dụ: độ dài dòng, khoảng trắng, unused variables) và báo warning/error khi build.
 
-### ❌ Raw Exception
-```dart
-throw Exception('Failed');                   // WRONG
-return Left(ServerFailure(message: '...'));  // CORRECT
-```
+* **Ví dụ cấu hình (`.swiftlint.yml`):**
+    ```yaml
+    line_length:
+      warning: 120
+      error: 150
+    force_cast: warning # Cảnh báo khi dùng 'as!'
+    ```
 
-### ❌ Missing Loading
-```dart
-final result = await useCase.delete();       // WRONG
+### Lựa chọn 2: SwiftFormat
+Công cụ tự động sửa lỗi định dạng code (Auto-formatter). Thay vì chỉ cảnh báo, nó tự động chèn/xóa khoảng trắng, căn lề lại code.
 
-Loading.show();                              // CORRECT
-try { await useCase.delete(); }
-finally { Loading.hide(); }
-```
+* **Ví dụ sử dụng:** Chạy script `swiftformat .` trước mỗi lần commit.
 
-### ❌ Inconsistent Naming
-```dart
-class settingScreen {}                       // WRONG (lowercase)
-class Setting_Controller {}                  // WRONG (underscore)
+### Bảng so sánh ưu và nhược điểm
 
-class SettingScreen {}                       // CORRECT (PascalCase)
-class SettingController {}                   // CORRECT
-```
+| Tiêu chí | Lựa chọn 1 (SwiftLint) | Lựa chọn 2 (SwiftFormat) |
+| :--- | :--- | :--- |
+| **Ưu điểm** | Có hàng trăm rules chi tiết về logic code. Lý tưởng để tích hợp vào GitHub Actions chặn PR lỗi. | Giải phóng lập trình viên khỏi việc sửa lỗi căn lề lặt vặt. Code luôn đẹp một cách đồng nhất. |
+| **Nhược điểm** | Developer phải tự sửa tay các warning (với hầu hết các rule). | Chỉ sửa được vấn đề thẩm mỹ, không phát hiện được lỗi logic hay memory management. |
 
----
-
-## 7. ARCHITECTURE CHECKLIST
-
-- ✅ Clean Architecture: domain/data/presentation layers
-- ✅ Dependency injection trong service_locator.dart
-- ✅ Immutable entities với @immutable
-- ✅ GetX observables (.obs) cho reactive state
-- ✅ Either<Failure, T> cho error handling
-- ✅ Type-safe assets với flutter_gen
-- ✅ Structured translations với easy_localization
-- ✅ Format code: 80 char line length
-- ✅ Pre-commit hooks với lint_staged
-
----
-
-**Tuân thủ quy tắc này để codebase nhất quán, dễ maintain và scalable.**
+> **Quy định:** Dự án PubStar SDK khuyến khích sử dụng **cả hai**. SwiftFormat chạy cục bộ ở máy dev để format code, còn SwiftLint gắn trên GitHub Actions CI/CD để check lỗi trước khi merge.

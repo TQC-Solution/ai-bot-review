@@ -91,7 +91,7 @@ jobs:
 
       # Bước 2: Chạy AI reviewer
       - name: Run OpenRouter AI Code Reviewer
-        uses: vincetran/flutter-ai-review-bot@main  # Dùng tool này
+        uses: pubstar-io/ios-sdk-ai-review-bot@main  # Dùng tool này
         with:
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}  # API key (sẽ setup ở bước sau)
           github-token: ${{ secrets.GITHUB_TOKEN }}              # Token tự động có sẵn
@@ -186,7 +186,7 @@ Trong file `.github/workflows/ai-review.yml`, phần `with:` có các tham số 
 Sửa file `.github/workflows/ai-review.yml`:
 
 ```yaml
-- uses: vincetran/flutter-ai-review-bot@main
+- uses: pubstar-io/ios-sdk-ai-review-bot@main
   with:
     openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -747,7 +747,7 @@ If you're upgrading from the Gemini version (v2.x), just update your workflow:
 
 **Old (Gemini):**
 ```yaml
-- uses: vincetran/flutter-ai-review-bot@v2
+- uses: pubstar-io/ios-sdk-ai-review-bot@v2
   with:
     gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -755,7 +755,7 @@ If you're upgrading from the Gemini version (v2.x), just update your workflow:
 
 **New (OpenRouter):**
 ```yaml
-- uses: vincetran/flutter-ai-review-bot@main
+- uses: pubstar-io/ios-sdk-ai-review-bot@main
   with:
     openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
     github-token: ${{ secrets.GITHUB_TOKEN }}
