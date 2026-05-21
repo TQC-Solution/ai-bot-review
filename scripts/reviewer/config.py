@@ -55,18 +55,42 @@ class Config:
     INITIAL_RETRY_DELAY = 5  # seconds
     RETRY_BACKOFF_MULTIPLIER = 2
 
+    # @classmethod
+    # def get_rules_path(cls) -> Path:
+    #     """Lấy đường dẫn tuyệt đối đến thư mục chứa rules."""
+    #     # workspace_path = os.getenv("GITHUB_WORKSPACE", ".")
+    #     # return Path(workspace_path) / cls.RULES_DIR
+    #     script_dir = os.path.dirname(os.path.dirname(__file__))
+    #     # return os.path.join(
+    #     #         script_dir, "prompts", cls.RULES_DIR
+    #     #     )
+    #     return os.path.join(
+    #             script_dir, "prompts", "pubstar-ios"
+    #         )
+
+    # @classmethod
+    # def get_rules_path(cls) -> Path:
+    #     """Lấy đường dẫn tuyệt đối đến thư mục chứa rules."""
+    #     # Lấy thư mục chứa file hiện tại rồi lùi lên 2 cấp (tương đương 2 lần dirname)
+    #     script_dir = Path(__file__).resolve().parent.parent
+        
+    #     # Đảm bảo rules_dir không bị None. Nếu None, gán một chuỗi an toàn.
+    #     # Lưu ý: Thay ".github/ai-review-rules" bằng thư mục mặc định thực tế của bạn.
+    #     rules_dir = cls.RULES_DIR
+        
+    #     # Dùng toán tử / của pathlib để nối đường dẫn một cách an toàn và trả về đúng object Path
+    #     return script_dir / "prompts" / rules_dir
+
     @classmethod
     def get_rules_path(cls) -> Path:
-        """Lấy đường dẫn tuyệt đối đến thư mục chứa rules."""
-        # workspace_path = os.getenv("GITHUB_WORKSPACE", ".")
-        # return Path(workspace_path) / cls.RULES_DIR
-        script_dir = os.path.dirname(os.path.dirname(__file__))
-        # return os.path.join(
-        #         script_dir, "prompts", cls.RULES_DIR
-        #     )
-        return os.path.join(
-                script_dir, "prompts", "pubstar-ios"
-            )
+        """Lấy đường dẫn tuyệt đối đến thư mục chứa rules (scripts/pubstar-ios)."""
+        # __file__ trỏ tới: scripts/reviewer/config.py
+        # .parent lần 1 ra: scripts/reviewer/
+        # .parent lần 2 ra: scripts/
+        scripts_dir = Path(__file__).resolve().parent.parent
+        
+        # Trỏ tới thư mục pubstar-ios nằm cùng cấp với reviewer
+        return scripts_dir / "pubstar-ios"
 
     @classmethod
     def validate(cls) -> list[str]:
