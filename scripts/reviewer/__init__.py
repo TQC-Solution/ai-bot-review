@@ -1,4 +1,4 @@
-"""AI Code Reviewer Package for Flutter/Dart projects using OpenRouter AI."""
+"""AI Code Reviewer Package for code projects using OpenRouter AI."""
 
 __version__ = "3.0.0"
 

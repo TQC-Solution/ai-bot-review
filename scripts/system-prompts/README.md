@@ -40,22 +40,6 @@ Each template should follow this structure:
 {code_diff}
 ```
 
-## Example: Adding Japanese Support
-
-1. Create `review_prompt_ja.txt`:
-```
-あなたはシニアFlutter/Dartエンジニアです。以下のコード変更をレビューしてください。
-
-=== コーディング規約 ===
-{coding_rules}
-
-=== タスク ===
-...
-
-=== コードDIFF ===
-{code_diff}
-```
-
 2. Update `ai_review.py`:
 ```python
 def load_prompt_template(language: str) -> str:

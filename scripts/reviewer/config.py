@@ -16,7 +16,8 @@ class Config:
     GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
     GITHUB_REF = os.getenv("GITHUB_REF", "")
     REVIEW_LANGUAGE = os.getenv("REVIEW_LANGUAGE", "vietnamese").lower()
-    RULES_DIR = os.getenv("INPUT_RULES_PATH", ".github/ai-review-rules")
+    RULES_PATH = os.getenv("RULES_PATH", "empty")
+    STACK = os.getenv("STACK")
 
     # OpenRouter model configuration
     # Model is controlled by project maintainers, users cannot override
@@ -27,7 +28,7 @@ class Config:
     # Paid options:
     #   - "anthropic/claude-3.5-sonnet" (Excellent for code review)
     #   - "openai/gpt-4-turbo" (High quality)
-    OPENROUTER_MODEL = "z-ai/glm-4.5-air:free"
+    OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-3.1-flash-lite")
 
     # Constants
     MAX_DIFF_LENGTH = 100000  # Limit diff size to avoid huge token payloads (increased from 12k)
@@ -55,9 +56,25 @@ class Config:
 
     @classmethod
     def get_rules_path(cls) -> Path:
-        """Lấy đường dẫn tuyệt đối đến thư mục chứa rules."""
-        workspace_path = os.getenv("GITHUB_WORKSPACE", ".")
-        return Path(workspace_path) / cls.RULES_DIR
+        """Lấy đường dẫn tuyệt đối đến thư mục chứa rules (scripts/rules/[rules])."""
+        # __file__ trỏ tới: scripts/reviewer/config.py
+        # .parent lần 1 ra: scripts/reviewer/
+        # .parent lần 2 ra: scripts/
+        scripts_dir = Path(__file__).resolve().parent.parent
+        
+        # Trỏ tới thư mục pubstar-ios nằm trong folter scripts/rules/
+        return scripts_dir / "rules" / cls.RULES_PATH
+    
+    @classmethod
+    def get_stacks_path(cls) -> Path:
+        """Lấy đường dẫn tuyệt đối đến thư mục chứa stacks (scripts/stacks/)."""
+        # __file__ trỏ tới: scripts/reviewer/config.py
+        # .parent lần 1 ra: scripts/reviewer/
+        # .parent lần 2 ra: scripts/
+        scripts_dir = Path(__file__).resolve().parent.parent
+        
+        # Trỏ tới thư mục pubstar-ios nằm trong folter scripts/stacks/
+        return scripts_dir / "stacks" / cls.STACK
 
     @classmethod
     def validate(cls) -> list[str]:
@@ -77,18 +94,22 @@ class Config:
         if not cls.GITHUB_REPOSITORY:
             errors.append("GITHUB_REPOSITORY is not set")
 
+        if not cls.STACK:
+            errors.append("STACK is not set")
+
         if cls.REVIEW_LANGUAGE not in ['vietnamese', 'english']:
             errors.append(f"Invalid REVIEW_LANGUAGE: {cls.REVIEW_LANGUAGE}. Must be 'vietnamese' or 'english'")
 
-        rules_path = cls.get_rules_path()
-
-        if not rules_path.exists() or not rules_path.is_dir():
-            errors.append(f"Rules directory not found at: {cls.RULES_DIR}")
+        stacks_path = cls.get_stacks_path()
+        if not stacks_path.exists() or not stacks_path.is_dir():
+            errors.append(f"Stack directory not found at: {cls.STACK}")
         else:
             # Tìm tất cả file kết thúc bằng .md ở ngay trong thư mục này
-            md_files = list(rules_path.glob("*.md"))
+            md_files = list(stacks_path.glob("*.md"))
+
+            print(f"Debug: Checking md files: {len(md_files)} found in {stacks_path}")
             if not md_files:
-                errors.append(f"Rules directory '{cls.RULES_DIR}' contains no markdown (.md) files.")
+                errors.append(f"Stacks directory '{cls.STACK}' contains no markdown (.md) files.")
 
         return errors
 

@@ -1,19 +1,19 @@
-# This is a sample workflow file for AI Code Review
-# Copy this file to your project's .github/workflows/ directory
+# Đây là file workflow mẫu cho AI Code Review
+# Sao chép file này vào file .github/workflows/ai-review.yml của dự án bạn
 
 name: AI Code Review
 
-# Trigger: When a PR is opened, updated, or reopened on main or dev branch
+# Khi nào chạy? → Khi có PR mới hoặc cập nhật PR trên nhánh main/dev.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main, dev]
 
-# Required permissions for the action
+# Quyền cần thiết để thực hiện review và comment trên PR
 permissions:
-  contents: read           # Read repository contents
-  pull-requests: write     # Post comments on pull requests
-  issues: write           # Post comments (backup method)
+  contents: read           # Đọc code
+  pull-requests: write     # Viết comment vào PR
+  issues: write           # Viết comment (backup)
 
 jobs:
   ai_review:
@@ -21,19 +21,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the code
+      # Step 1: Checkout source code để AI có thể phân tích
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # Step 2: Run the AI Code Reviewer
+      # Step 2: Chạy AI Code Reviewer action đã được tạo sẵn (pubstar-io/ai-review-bot)
       - name: Run OpenRouter AI Code Reviewer
-        uses: TQC-Solution/flutter-ai-review-bot@main
+        uses: pubstar-io/ai-review-bot@main
         with:
-          # OpenRouter API key (set this in repository secrets)
-          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
-
-          # GitHub token (automatically provided by GitHub Actions)
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-          # Review language: 'vietnamese' or 'english' (default: vietnamese)
-          review-language: 'vietnamese'
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}  # OpenRouter API key (gán giá trị trong secrets của repository)
+          github-token: ${{ secrets.GITHUB_TOKEN }}  # GitHub token (giá trị này sẽ được tự động cung cấp bởi GitHub Actions)
+          stack: 'mobile-ios'
+          review-language: 'vietnamese' # Ngôn ngữ cho comment review: 'vietnamese' hoặc 'english' (mặc định: vietnamese)
+          rules-path: 'pubstar-ios'  # Đường dẫn đến thư mục chứa các file .md rules review
+          openrouter-model: 'google/gemini-3.1-flash-lite'  # OpenRouter model được sử dụng (default: google/gemini-3.1-flash-lite)
