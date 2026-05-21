@@ -37,3 +37,5 @@ jobs:
 
           # Review language: 'vietnamese' or 'english' (default: vietnamese)
           review-language: 'vietnamese'
+
+          rules-path: 'pubstar-ios'  # Đường dẫn đến thư mục chứa các file .md rules review (mặc định là 'ai-review-rules')

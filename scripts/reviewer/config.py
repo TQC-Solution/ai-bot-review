@@ -16,7 +16,8 @@ class Config:
     GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
     GITHUB_REF = os.getenv("GITHUB_REF", "")
     REVIEW_LANGUAGE = os.getenv("REVIEW_LANGUAGE", "vietnamese").lower()
-    RULES_DIR = os.getenv("INPUT_RULES_PATH", ".github/ai-review-rules")
+    # RULES_DIR = os.getenv("INPUT_RULES_PATH", "ai-review-rules")
+    RULES_DIR = os.getenv("RULES_DIR")
 
     # OpenRouter model configuration
     # Model is controlled by project maintainers, users cannot override
@@ -27,7 +28,8 @@ class Config:
     # Paid options:
     #   - "anthropic/claude-3.5-sonnet" (Excellent for code review)
     #   - "openai/gpt-4-turbo" (High quality)
-    OPENROUTER_MODEL = "z-ai/glm-4.5-air:free"
+    # OPENROUTER_MODEL = "z-ai/glm-4.5-air:free"
+    OPENROUTER_MODEL = "google/gemini-3.1-flash-lite"
 
     # Constants
     MAX_DIFF_LENGTH = 100000  # Limit diff size to avoid huge token payloads (increased from 12k)
@@ -56,8 +58,12 @@ class Config:
     @classmethod
     def get_rules_path(cls) -> Path:
         """Lấy đường dẫn tuyệt đối đến thư mục chứa rules."""
-        workspace_path = os.getenv("GITHUB_WORKSPACE", ".")
-        return Path(workspace_path) / cls.RULES_DIR
+        # workspace_path = os.getenv("GITHUB_WORKSPACE", ".")
+        # return Path(workspace_path) / cls.RULES_DIR
+        script_dir = os.path.dirname(os.path.dirname(__file__))
+        return os.path.join(
+                script_dir, "prompts", cls.RULES_DIR
+            )
 
     @classmethod
     def validate(cls) -> list[str]:
@@ -76,6 +82,9 @@ class Config:
 
         if not cls.GITHUB_REPOSITORY:
             errors.append("GITHUB_REPOSITORY is not set")
+
+        if not cls.RULES_DIR:
+            errors.append("RULES_DIR is not set")
 
         if cls.REVIEW_LANGUAGE not in ['vietnamese', 'english']:
             errors.append(f"Invalid REVIEW_LANGUAGE: {cls.REVIEW_LANGUAGE}. Must be 'vietnamese' or 'english'")
