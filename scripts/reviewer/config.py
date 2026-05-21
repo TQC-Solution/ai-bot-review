@@ -28,8 +28,8 @@ class Config:
     # Paid options:
     #   - "anthropic/claude-3.5-sonnet" (Excellent for code review)
     #   - "openai/gpt-4-turbo" (High quality)
-    # OPENROUTER_MODEL = "z-ai/glm-4.5-air:free"
-    OPENROUTER_MODEL = "google/gemini-3.1-flash-lite"
+    OPENROUTER_MODEL = "z-ai/glm-4.5-air:free"
+    # OPENROUTER_MODEL = "google/gemini-3.1-flash-lite"
 
     # Constants
     MAX_DIFF_LENGTH = 100000  # Limit diff size to avoid huge token payloads (increased from 12k)
