@@ -17,7 +17,7 @@ class Config:
     GITHUB_REF = os.getenv("GITHUB_REF", "")
     REVIEW_LANGUAGE = os.getenv("REVIEW_LANGUAGE", "vietnamese").lower()
     # RULES_DIR = os.getenv("INPUT_RULES_PATH", "ai-review-rules")
-    RULES_DIR = os.getenv("INPUT_RULES_PATH")
+    RULES_DIR = os.getenv("INPUT_RULES_PATH", "pubstar-ios")
 
     # OpenRouter model configuration
     # Model is controlled by project maintainers, users cannot override
