@@ -61,8 +61,11 @@ class Config:
         # workspace_path = os.getenv("GITHUB_WORKSPACE", ".")
         # return Path(workspace_path) / cls.RULES_DIR
         script_dir = os.path.dirname(os.path.dirname(__file__))
+        # return os.path.join(
+        #         script_dir, "prompts", cls.RULES_DIR
+        #     )
         return os.path.join(
-                script_dir, "prompts", cls.RULES_DIR
+                script_dir, "prompts", "pubstar-ios"
             )
 
     @classmethod
