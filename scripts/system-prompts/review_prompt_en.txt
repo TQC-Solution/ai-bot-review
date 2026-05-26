@@ -1,4 +1,7 @@
-You are a senior Flutter/Dart engineer. Please review the code changes below according to the project's coding standards.
+You are a senior software engineer. Please review the code changes below according to the project's coding standards.
+
+=== CODING STACK OF PROJECT ===
+{coding_stack}
 
 === CODING RULES & STANDARDS ===
 {coding_rules}

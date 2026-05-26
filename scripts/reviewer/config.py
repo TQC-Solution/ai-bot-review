@@ -16,8 +16,8 @@ class Config:
     GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
     GITHUB_REF = os.getenv("GITHUB_REF", "")
     REVIEW_LANGUAGE = os.getenv("REVIEW_LANGUAGE", "vietnamese").lower()
-    # RULES_DIR = os.getenv("INPUT_RULES_PATH", "ai-review-rules")
-    RULES_DIR = os.getenv("INPUT_RULES_PATH", "pubstar-ios")
+    RULES_PATH = os.getenv("RULES_PATH", "empty")
+    STACK = os.getenv("STACK")
 
     # OpenRouter model configuration
     # Model is controlled by project maintainers, users cannot override
@@ -28,8 +28,7 @@ class Config:
     # Paid options:
     #   - "anthropic/claude-3.5-sonnet" (Excellent for code review)
     #   - "openai/gpt-4-turbo" (High quality)
-    # OPENROUTER_MODEL = "z-ai/glm-4.5-air:free"
-    OPENROUTER_MODEL = "google/gemini-3.1-flash-lite"
+    OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-3.1-flash-lite")
 
     # Constants
     MAX_DIFF_LENGTH = 100000  # Limit diff size to avoid huge token payloads (increased from 12k)
@@ -55,42 +54,27 @@ class Config:
     INITIAL_RETRY_DELAY = 5  # seconds
     RETRY_BACKOFF_MULTIPLIER = 2
 
-    # @classmethod
-    # def get_rules_path(cls) -> Path:
-    #     """Lấy đường dẫn tuyệt đối đến thư mục chứa rules."""
-    #     # workspace_path = os.getenv("GITHUB_WORKSPACE", ".")
-    #     # return Path(workspace_path) / cls.RULES_DIR
-    #     script_dir = os.path.dirname(os.path.dirname(__file__))
-    #     # return os.path.join(
-    #     #         script_dir, "prompts", cls.RULES_DIR
-    #     #     )
-    #     return os.path.join(
-    #             script_dir, "prompts", "pubstar-ios"
-    #         )
-
-    # @classmethod
-    # def get_rules_path(cls) -> Path:
-    #     """Lấy đường dẫn tuyệt đối đến thư mục chứa rules."""
-    #     # Lấy thư mục chứa file hiện tại rồi lùi lên 2 cấp (tương đương 2 lần dirname)
-    #     script_dir = Path(__file__).resolve().parent.parent
-        
-    #     # Đảm bảo rules_dir không bị None. Nếu None, gán một chuỗi an toàn.
-    #     # Lưu ý: Thay ".github/ai-review-rules" bằng thư mục mặc định thực tế của bạn.
-    #     rules_dir = cls.RULES_DIR
-        
-    #     # Dùng toán tử / của pathlib để nối đường dẫn một cách an toàn và trả về đúng object Path
-    #     return script_dir / "prompts" / rules_dir
-
     @classmethod
     def get_rules_path(cls) -> Path:
-        """Lấy đường dẫn tuyệt đối đến thư mục chứa rules (scripts/pubstar-ios)."""
+        """Lấy đường dẫn tuyệt đối đến thư mục chứa rules (scripts/rules/[rules])."""
         # __file__ trỏ tới: scripts/reviewer/config.py
         # .parent lần 1 ra: scripts/reviewer/
         # .parent lần 2 ra: scripts/
         scripts_dir = Path(__file__).resolve().parent.parent
         
-        # Trỏ tới thư mục pubstar-ios nằm cùng cấp với reviewer
-        return scripts_dir / "pubstar-ios"
+        # Trỏ tới thư mục pubstar-ios nằm trong folter scripts/rules/
+        return scripts_dir / "rules" / cls.RULES_PATH
+    
+    @classmethod
+    def get_stacks_path(cls) -> Path:
+        """Lấy đường dẫn tuyệt đối đến thư mục chứa stacks (scripts/stacks/)."""
+        # __file__ trỏ tới: scripts/reviewer/config.py
+        # .parent lần 1 ra: scripts/reviewer/
+        # .parent lần 2 ra: scripts/
+        scripts_dir = Path(__file__).resolve().parent.parent
+        
+        # Trỏ tới thư mục pubstar-ios nằm trong folter scripts/stacks/
+        return scripts_dir / "stacks" / cls.STACK
 
     @classmethod
     def validate(cls) -> list[str]:
@@ -110,21 +94,22 @@ class Config:
         if not cls.GITHUB_REPOSITORY:
             errors.append("GITHUB_REPOSITORY is not set")
 
-        if not cls.RULES_DIR:
-            errors.append("RULES_DIR is not set")
+        if not cls.STACK:
+            errors.append("STACK is not set")
 
         if cls.REVIEW_LANGUAGE not in ['vietnamese', 'english']:
             errors.append(f"Invalid REVIEW_LANGUAGE: {cls.REVIEW_LANGUAGE}. Must be 'vietnamese' or 'english'")
 
-        rules_path = cls.get_rules_path()
-
-        if not rules_path.exists() or not rules_path.is_dir():
-            errors.append(f"Rules directory not found at: {cls.RULES_DIR}")
+        stacks_path = cls.get_stacks_path()
+        if not stacks_path.exists() or not stacks_path.is_dir():
+            errors.append(f"Stack directory not found at: {cls.STACK}")
         else:
             # Tìm tất cả file kết thúc bằng .md ở ngay trong thư mục này
-            md_files = list(rules_path.glob("*.md"))
+            md_files = list(stacks_path.glob("*.md"))
+
+            print(f"Debug: Checking md files: {len(md_files)} found in {stacks_path}")
             if not md_files:
-                errors.append(f"Rules directory '{cls.RULES_DIR}' contains no markdown (.md) files.")
+                errors.append(f"Stacks directory '{cls.STACK}' contains no markdown (.md) files.")
 
         return errors
 

@@ -1,5 +1,5 @@
-name: 'Flutter AI Code Reviewer (OpenRouter)'
-description: 'Automated Flutter/Dart code review using OpenRouter AI with Clean Architecture standards'
+name: 'AI Code Reviewer (OpenRouter)'
+description: 'Automated code review using OpenRouter AI with Clean Architecture standards'
 author: 'vincetran'
 
 branding:
@@ -13,6 +13,9 @@ inputs:
   github-token:
     description: 'GitHub token for posting PR comments (use secrets.GITHUB_TOKEN)'
     required: true
+  stack:
+    description: 'Stack công nghệ mà dự án đang sử dụng'
+    required: true
   rules-path:
     description: 'Đường dẫn đến thư mục chứa các file .md rules review'
     required: true
@@ -20,6 +23,14 @@ inputs:
     description: 'Language for code review comments: "vietnamese" or "english"'
     required: false
     default: 'vietnamese'
+  rule-path:
+    description: 'Đường dẫn đến thư mục chứa các file .md rules review'
+    required: true
+    default: 'empty'
+  openrouter-model:
+    description: 'OpenRouter model to use for code review (controlled by maintainers)'
+    required: false
+    default: 'google/gemini-3.1-flash-lite'
 
 runs:
   using: 'composite'
@@ -40,7 +51,10 @@ runs:
       env:
         OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        STACK: ${{ inputs.stack }}
+        RULES_PATH: ${{ inputs.rule-path }}
         GITHUB_REPOSITORY: ${{ github.repository }}
         GITHUB_REF: ${{ github.ref }}
         REVIEW_LANGUAGE: ${{ inputs.review-language }}
+        OPENROUTER_MODEL: ${{ inputs.openrouter-model }}
       run: python ${{ github.action_path }}/scripts/ai_review.py

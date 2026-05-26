@@ -1,4 +1,4 @@
-# Flutter AI Code Reviewer (OpenRouter)
+# AI Code Reviewer (OpenRouter)
 
 > **🎉 NEW: v3.0 - OpenRouter Integration!** Now supports multiple AI providers through OpenRouter API. Easily switch between models like Grok, Claude, GPT-4, Gemini, and more by just changing a config parameter. No more vendor lock-in!
 
@@ -7,12 +7,14 @@
 **Đơn giản là**: Mỗi khi bạn tạo Pull Request (PR) trên GitHub, một AI sẽ tự động đọc code của bạn và đưa ra nhận xét, giống như một senior developer review code.
 
 **Chi tiết hơn**:
+
 - Đây là một GitHub Action (tự động chạy khi có PR)
-- Sử dụng AI (như ChatGPT, Claude, Gemini...) để phân tích code Flutter/Dart
+- Sử dụng AI (như ChatGPT, Claude, Gemini...) để phân tích code bạn viết trong PR
 - Kiểm tra theo các quy tắc như Clean Architecture, GetX patterns, chuẩn code...
 - Đưa ra **1 comment tổng hợp** trên PR với các góp ý cụ thể
 
 **Ví dụ thực tế**:
+
 ```
 Bạn tạo PR thêm tính năng login
 ↓
@@ -46,6 +48,7 @@ Bạn nhận được comment:
 GitHub Action = **Một đoạn code tự động chạy khi có sự kiện trên GitHub**
 
 Trong dự án này:
+
 - **Sự kiện**: Khi có Pull Request mới hoặc cập nhật PR
 - **Hành động**: Chạy script Python để review code bằng AI
 - **Kết quả**: Đăng comment review lên PR
@@ -64,38 +67,43 @@ Trong dự án này:
 **File cấu hình (Copy toàn bộ đoạn này):**
 
 ```yaml
-# .github/workflows/ai-review.yml
+# Đây là file workflow mẫu cho AI Code Review
+# Sao chép file này vào file .github/workflows/ai-review.yml của dự án bạn
+
 name: AI Code Review
 
-# Khi nào chạy? → Khi có PR mới hoặc cập nhật PR trên nhánh main/dev
+# Khi nào chạy? → Khi có PR mới hoặc cập nhật PR trên nhánh main/dev.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main, dev]
 
-# Quyền cần thiết
+# Quyền cần thiết để thực hiện review và comment trên PR
 permissions:
-  contents: read           # Đọc code
-  pull-requests: write     # Viết comment vào PR
-  issues: write           # Viết comment (backup)
+  contents: read # Đọc code
+  pull-requests: write # Viết comment vào PR
+  issues: write # Viết comment (backup)
 
 jobs:
   ai_review:
     name: AI Code Review
-    runs-on: ubuntu-latest  # Chạy trên máy ảo Ubuntu
+    runs-on: ubuntu-latest
 
     steps:
-      # Bước 1: Tải code về
+      # Step 1: Checkout source code để AI có thể phân tích
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # Bước 2: Chạy AI reviewer
+      # Step 2: Chạy AI Code Reviewer action đã được tạo sẵn (pubstar-io/ai-review-bot)
       - name: Run OpenRouter AI Code Reviewer
-        uses: pubstar-io/ios-sdk-ai-review-bot@main  # Dùng tool này
+        uses: pubstar-io/ai-review-bot@main
         with:
-          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}  # API key (sẽ setup ở bước sau)
-          github-token: ${{ secrets.GITHUB_TOKEN }}              # Token tự động có sẵn
-          review-language: 'vietnamese'  # Ngôn ngữ review (vietnamese hoặc english)
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }} # OpenRouter API key (gán giá trị trong secrets của repository)
+          github-token: ${{ secrets.GITHUB_TOKEN }} # GitHub token (giá trị này sẽ được tự động cung cấp bởi GitHub Actions)
+          stack: "mobile-ios" # Stack của công nghệ mà dự án sử dụng (giá trị của stack là các folder nằm bên trong scripts/stacks)
+          review-language: "vietnamese" # Ngôn ngữ cho comment review: 'vietnamese' hoặc 'english' (mặc định: vietnamese)
+          rules-path: "pubstar-ios" # Đường dẫn đến thư mục chứa các file .md rules review
+          openrouter-model: "google/gemini-3.1-flash-lite" # OpenRouter model to use (default: google/gemini-3.1-flash-lite)
 ```
 
 ### Bước 3: Lấy API Key và cấu hình
@@ -106,7 +114,7 @@ jobs:
 2. Đăng ký tài khoản (miễn phí)
 3. Click "Create Key" → Tạo API key mới
 4. **Copy key này** (chỉ hiển thị 1 lần, nếu mất phải tạo lại)
-5. *(Tùy chọn)* Nạp tiền nếu dùng AI trả phí, **hoặc dùng AI miễn phí** (Grok, Gemini)
+5. _(Tùy chọn)_ Nạp tiền nếu dùng AI trả phí, **hoặc dùng AI miễn phí** (Grok, Gemini)
 
 **3.2. Lưu API Key vào GitHub Secret**
 
@@ -119,8 +127,9 @@ jobs:
 5. Click **"Add secret"**
 
 **3.3. Tạo Pull Request để test**
-   - Tạo 1 PR bất kỳ → Action sẽ tự động chạy và review
-   - Xem kết quả trong tab "Checks" hoặc comment của PR
+
+- Tạo 1 PR bất kỳ → Action sẽ tự động chạy và review
+- Xem kết quả trong tab "Checks" hoặc comment của PR
 
 ---
 
@@ -129,13 +138,15 @@ jobs:
 ### AI Model là gì?
 
 Mỗi model có:
+
 - **Độ thông minh khác nhau** (model đắt tiền thường thông minh hơn)
 - **Chi phí khác nhau** (có model miễn phí, có model trả phí)
 - **Tốc độ khác nhau**
 
-### Model hiện tại
+### Model ví dụ
 
 Dự án đang dùng: **Grok 4.1 Fast (Free)**
+
 - ✅ Miễn phí
 - ✅ Nhanh
 - ✅ Hỗ trợ reasoning (suy luận nâng cao)
@@ -153,14 +164,14 @@ Dự án đang dùng: **Grok 4.1 Fast (Free)**
 OPENROUTER_MODEL = "x-ai/grok-4.1-fast:free"  # ← Đổi giá trị này
 
 # Ví dụ các model có thể dùng:
-# ┌─────────────────────────────────────┬──────────┬──────────────┐
-# │ Model                               │ Loại    │ Đặc điểm     │
-# ├─────────────────────────────────────┼──────────┼──────────────┤
-# │ "x-ai/grok-4.1-fast:free"          │ FREE    │ Nhanh        │
-# │ "google/gemini-2.0-flash-exp:free" │ FREE    │ Thông minh   │
-# │ "anthropic/claude-3.5-sonnet"      │ PAID    │ Rất thông minh│
-# │ "openai/gpt-4-turbo"               │ PAID    │ Đa năng      │
-# └─────────────────────────────────────┴──────────┴──────────────┘
+# ┌─────────────────────────────────────┬──────────┬───────────────┐
+# │ Model                               │ Loại     │ Đặc điểm      │
+# ├─────────────────────────────────────┼──────────┼───────────────┤
+# │ "x-ai/grok-4.1-fast:free"           │ FREE     │ Nhanh         │
+# │ "google/gemini-2.0-flash-exp:free"  │ FREE     │ Thông minh    │
+# │ "anthropic/claude-3.5-sonnet"       │ PAID     │ Rất thông minh│
+# │ "openai/gpt-4-turbo"                │ PAID     │ Đa năng       │
+# └─────────────────────────────────────┴──────────┴───────────────┘
 ```
 
 **Bước 3**: Lưu file và commit
@@ -175,11 +186,14 @@ OPENROUTER_MODEL = "x-ai/grok-4.1-fast:free"  # ← Đổi giá trị này
 
 Trong file `.github/workflows/ai-review.yml`, phần `with:` có các tham số sau:
 
-| Tham số | Bắt buộc? | Mặc định | Giải thích |
-|---------|-----------|----------|------------|
-| `openrouter-api-key` | ✅ Bắt buộc | - | API key của OpenRouter (đã setup ở bước 3) |
-| `github-token` | ✅ Bắt buộc | - | Token GitHub (dùng `${{ secrets.GITHUB_TOKEN }}` - tự động có) |
-| `review-language` | ⭕ Tùy chọn | `vietnamese` | Ngôn ngữ review: `vietnamese` hoặc `english` |
+| Tham số              | Bắt buộc?   | Mặc định                       | Giải thích                                                     |
+| -------------------- | ----------- | ------------------------------ | -------------------------------------------------------------- |
+| `openrouter-api-key` | ✅ Bắt buộc | -                              | API key của OpenRouter (đã setup ở bước 3)                     |
+| `github-token`       | ✅ Bắt buộc | -                              | Token GitHub (dùng `${{ secrets.GITHUB_TOKEN }}` - tự động có) |
+| `stack`              | ✅ Bắt buộc | -                              | Đường dẫn đến thư mục chứa các file .md stack công nghệ        |
+| `rules-path`         | ⭕ Tùy chọn | -                              | Đường dẫn đến thư mục chứa các file .md rules review           |
+| `review-language`    | ⭕ Tùy chọn | `vietnamese`                   | Ngôn ngữ review: `vietnamese` hoặc `english`                   |
+| `openrouter-model`   | ⭕ Tùy chọn | `google/gemini-3.1-flash-lite` | OpenRouter model được sử dụng                                  |
 
 ### Ví dụ: Đổi sang review bằng tiếng Anh
 
@@ -190,7 +204,10 @@ Sửa file `.github/workflows/ai-review.yml`:
   with:
     openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    review-language: 'english'  # ← Đổi thành 'english'
+    rules-path: "pubstar-ios" # Đường dẫn đến thư mục chứa các file .md rules review
+    stack: "mobile-ios"
+    review-language: "vietnamese"
+    openrouter-model: "google/gemini-3.1-flash-lite" # ← Đổi model nếu cần
 ```
 
 ---
@@ -199,84 +216,94 @@ Sửa file `.github/workflows/ai-review.yml`:
 
 ### Các quy tắc AI kiểm tra
 
-AI được huấn luyện để kiểm tra code Flutter/Dart theo các tiêu chí sau:
+AI được huấn luyện để kiểm tra code bạn viết theo các tiêu chí sau:
 
 #### 1. **Kiến trúc Clean Architecture**
 
-   **Là gì?** Cách tổ chức code thành các tầng (layers) rõ ràng
+**Là gì?** Cách tổ chức code thành các tầng (layers) rõ ràng
 
-   **AI kiểm tra:**
-   - ❌ Tầng Domain có import code từ tầng Data/Presentation không?
-   - ❌ Có vi phạm nguyên tắc phụ thuộc giữa các tầng không?
+**AI kiểm tra:**
 
-   **Ví dụ lỗi:**
-   ```dart
-   // File: domain/usecases/login_usecase.dart
-   import '../../data/repositories/user_repo.dart'; // ❌ SAI: Domain không được import Data
-   ```
+- ❌ Tầng Domain có import code từ tầng Data/Presentation không?
+- ❌ Có vi phạm nguyên tắc phụ thuộc giữa các tầng không?
+
+**Ví dụ lỗi:**
+
+```dart
+// File: domain/usecases/login_usecase.dart
+import '../../data/repositories/user_repo.dart'; // ❌ SAI: Domain không được import Data
+```
 
 #### 2. **GetX Controller Management**
 
-   **Là gì?** Cách quản lý state với GetX framework
+**Là gì?** Cách quản lý state với GetX framework
 
-   **AI kiểm tra:**
-   - ❌ Dùng `Get.put()` sai chỗ (nên dùng `Get.find()`)
-   - ❌ Controller lifecycle không đúng
+**AI kiểm tra:**
 
-   **Ví dụ lỗi:**
-   ```dart
-   // Trong Widget build()
-   final controller = Get.put(LoginController()); // ❌ SAI: Sẽ tạo instance mới mỗi lần build
-   // ✅ ĐÚNG: Get.find<LoginController>()
-   ```
+- ❌ Dùng `Get.put()` sai chỗ (nên dùng `Get.find()`)
+- ❌ Controller lifecycle không đúng
+
+**Ví dụ lỗi:**
+
+```dart
+// Trong Widget build()
+final controller = Get.put(LoginController()); // ❌ SAI: Sẽ tạo instance mới mỗi lần build
+// ✅ ĐÚNG: Get.find<LoginController>()
+```
 
 #### 3. **Type Safety (An toàn kiểu dữ liệu)**
 
-   **AI kiểm tra:**
-   - ❌ Hardcode đường dẫn assets → Nên dùng `Assets.icons.iconName`
-   - ❌ Hardcode text UI → Nên dùng `context.tr()` để hỗ trợ đa ngôn ngữ
+**AI kiểm tra:**
 
-   **Ví dụ lỗi:**
-   ```dart
-   Image.asset('assets/icons/logo.png')  // ❌ SAI: Hardcode
-   Image.asset(Assets.icons.logo)        // ✅ ĐÚNG
+- ❌ Hardcode đường dẫn assets → Nên dùng `Assets.icons.iconName`
+- ❌ Hardcode text UI → Nên dùng `context.tr()` để hỗ trợ đa ngôn ngữ
 
-   Text('Login')              // ❌ SAI: Hardcode
-   Text(context.tr('login'))  // ✅ ĐÚNG
-   ```
+**Ví dụ lỗi:**
+
+```dart
+Image.asset('assets/icons/logo.png')  // ❌ SAI: Hardcode
+Image.asset(Assets.icons.logo)        // ✅ ĐÚNG
+
+Text('Login')              // ❌ SAI: Hardcode
+Text(context.tr('login'))  // ✅ ĐÚNG
+```
 
 #### 4. **Error Handling (Xử lý lỗi)**
 
-   **AI kiểm tra:**
-   - ❌ Thiếu pattern `Either<Failure, T>` (functional programming)
-   - ❌ Throw exception thô thay vì dùng Failure types
+**AI kiểm tra:**
 
-   **Ví dụ:**
-   ```dart
-   // ❌ SAI
-   User getUser() {
-     throw Exception('User not found');
-   }
+- ❌ Thiếu pattern `Either<Failure, T>` (functional programming)
+- ❌ Throw exception thô thay vì dùng Failure types
 
-   // ✅ ĐÚNG
-   Either<Failure, User> getUser() {
-     return Left(UserNotFoundFailure());
-   }
-   ```
+**Ví dụ:**
+
+```dart
+// ❌ SAI
+User getUser() {
+  throw Exception('User not found');
+}
+
+// ✅ ĐÚNG
+Either<Failure, User> getUser() {
+  return Left(UserNotFoundFailure());
+}
+```
 
 #### 5. **Naming Conventions (Quy tắc đặt tên)**
 
-   **AI kiểm tra:**
-   - File names: `snake_case` (vd: `user_profile.dart`)
-   - Class names: `PascalCase` (vd: `UserProfile`)
-   - Variables/methods: `camelCase` (vd: `userName`, `getUserName()`)
+**AI kiểm tra:**
+
+- File names: `snake_case` (vd: `user_profile.dart`)
+- Class names: `PascalCase` (vd: `UserProfile`)
+- Variables/methods: `camelCase` (vd: `userName`, `getUserName()`)
 
 #### 6. **Code Quality (Chất lượng code)**
 
-   **AI kiểm tra:**
-   - 🐛 Bugs và lỗi logic
-   - 📖 Dễ đọc, dễ maintain không
-   - ⚡ Performance có vấn đề không
+**AI kiểm tra:**
+
+- 🐛 Bugs và lỗi logic
+- 📖 Dễ đọc, dễ maintain không
+- ⚡ Performance có vấn đề không
 
 ---
 
@@ -315,7 +342,7 @@ AI được huấn luyện để kiểm tra code Flutter/Dart theo các tiêu ch
 ### Cấu trúc thư mục (Dễ hiểu)
 
 ```
-flutter-ai-review-bot/
+ai-review-bot/
 │
 ├── action.yml                           # ← File định nghĩa GitHub Action
 │
@@ -334,14 +361,18 @@ flutter-ai-review-bot/
 │   │   ├── diff_chunker.py            # → Chia nhỏ PR lớn thành chunks
 │   │   └── utils.py                   # → Các hàm tiện ích
 │   │
+│   ├── stacks/                       # ← Stack công nghệ
+│   │   └──  [folder stack] # → Quy tắc review code cho từng nền tảng công nghệ (Ví dụ: mobile-ios)
+│   │       └── CODING_RULES.md             # → Quy tắc code chung của ngôn ngũ
+│   │
 │   ├── requirements.txt                # ← Danh sách thư viện Python cần cài
 │   │
-│   ├── rule/                           # ← Các quy tắc review (có thể edit)
-│   │   ├── CLEAN_ARCHITECTURE_RULES.md # → Quy tắc Clean Architecture
-│   │   ├── GETX_CONTROLLER_RULES.md    # → Quy tắc GetX
-│   │   └── CODING_RULES.md             # → Quy tắc code chung
+│   ├── rules/                           # ← Các quy tắc review (có thể edit)
+│   │   └──  [folder code rules] # → Quy tắc review code cho từng project (Ví dụ: pubstar-ios)
+│   │       ├── CLEAN_ARCHITECTURE_RULES.md # → Quy tắc Clean Architecture
+│   │       └── CODING_RULES.md             # → Quy tắc code chung của ngôn ngũ
 │   │
-│   └── prompts/                        # ← Template prompt gửi AI (có thể edit)
+│   └── system-prompts/                 # ← System prompts chung trong hệ thống
 │       ├── review_prompt_vi.txt        # → Prompt tiếng Việt
 │       ├── review_prompt_en.txt        # → Prompt tiếng Anh
 │       └── README.md                   # → Hướng dẫn edit prompts
@@ -351,20 +382,22 @@ flutter-ai-review-bot/
 
 **Giải thích từng phần:**
 
-| Thư mục/File | Chức năng | Có thể chỉnh sửa? |
-|--------------|-----------|-------------------|
-| `action.yml` | Định nghĩa GitHub Action | ❌ Không (trừ khi bạn là maintainer) |
-| `.github/workflows/ai-review.yml` | File mẫu để user copy | ✅ Có (user copy và tùy chỉnh) |
-| `scripts/ai_review.py` | Code Python chính | ❌ Không cần (trừ khi fix bug) |
-| `scripts/reviewer/*.py` | Các module Python | ❌ Không cần (trừ khi fix bug) |
-| `scripts/rule/*.md` | **Quy tắc review** | ✅ **Có - Edit để thay đổi cách AI review** |
-| `scripts/prompts/*.txt` | **Template prompt AI** | ✅ **Có - Edit để thay đổi tone/style của AI** |
+| Thư mục/File                            | Chức năng                | Có thể chỉnh sửa?                              |
+| --------------------------------------- | ------------------------ | ---------------------------------------------- |
+| `scripts/rules/[folder code rule]/*.md` | **Quy tắc review**       | ✅ **Có - Edit để thay đổi cách AI review**    |
+| `scripts/stacks/[folder stack]/*.md`    | **Quy tắc review**       | ✅ **Có - Edit để thay đổi cách AI review**    |
+| `scripts/system-prompts/*.txt`          | **Template prompt AI**   | ✅ **Có - Edit để thay đổi tone/style của AI** |
+| `.github/workflows/ai-review.yml`       | File mẫu để user copy    | ✅ Có (user copy và tùy chỉnh)                 |
+| `action.yml`                            | Định nghĩa GitHub Action | ❌ Không (trừ khi bạn là maintainer)           |
+| `scripts/ai_review.py`                  | Code Python chính        | ❌ Không cần (trừ khi fix bug)                 |
+| `scripts/reviewer/*.py`                 | Các module Python        | ❌ Không cần (trừ khi fix bug)                 |
 
 ### Chi tiết các module Python
 
 **Dự án được tổ chức thành 6 modules nhỏ**, mỗi module làm 1 nhiệm vụ riêng:
 
 #### Module chính
+
 - **[ai_review.py](scripts/ai_review.py)** - File điều phối chính
   - Gọi các module khác theo thứ tự
   - Xử lý workflow tổng thể
@@ -406,6 +439,7 @@ flutter-ai-review-bot/
    - Các helper functions khác
 
 #### Ưu điểm của kiến trúc này
+
 - ✅ **Modular**: Mỗi module làm 1 việc, dễ hiểu
 - ✅ **Dễ test**: Test từng module riêng biệt
 - ✅ **Dễ maintain**: Sửa bug dễ dàng, biết bug ở module nào
@@ -415,6 +449,7 @@ flutter-ai-review-bot/
 #### Tài liệu chi tiết
 
 Nếu bạn muốn hiểu sâu hơn hoặc đóng góp code:
+
 - 📖 [Module Documentation](scripts/reviewer/README.md) - Chi tiết từng module
 - 📖 [Architecture Diagrams](scripts/reviewer/ARCHITECTURE.md) - Sơ đồ kiến trúc
 
@@ -441,14 +476,18 @@ pip install -r scripts/requirements.txt
 
 ```bash
 # Các thông tin cần thiết cho script
-export GITHUB_REF='refs/pull/1/merge'              # ← Số PR (ví dụ: PR #1)
-export GITHUB_TOKEN='ghp_xxxxxxxxxxxxx'            # ← GitHub Personal Access Token
-export GITHUB_REPOSITORY='owner/repo'             # ← Tên repo (vd: facebook/react)
-export OPENROUTER_API_KEY='sk-or-v1-xxxxxx'      # ← API key OpenRouter
-export REVIEW_LANGUAGE='vietnamese'               # ← Ngôn ngữ (vietnamese hoặc english)
+export OPENROUTER_API_KEY='sk-or-v1-xxxxxx'            # ← API key OpenRouter
+export GITHUB_TOKEN='ghp_xxxxxxxxxxxxx'                # ← GitHub Personal Access Token
+export STACK='backend-node'                            # ← stack công nghệ của dự án
+export RULES_PATH='pubstar'                            # ← Thư mục chức luật review code
+export GITHUB_REPOSITORY='owner/repo'                  # ← Tên repo (vd: facebook/react)
+export GITHUB_REF='refs/pull/1/merge'                  # ← Số PR (ví dụ: PR #1)
+export REVIEW_LANGUAGE='vietnamese'                    # ← Ngôn ngữ (vietnamese hoặc english)
+exprot OPENROUTER_MODEL='google/gemini-3.1-flash-lite' # ← Modal dùng để review code
 ```
 
 > **Lấy GitHub Token ở đâu?**
+>
 > 1. Vào GitHub → Settings → Developer settings → Personal access tokens
 > 2. Generate new token với quyền: `repo`, `pull_request`
 
@@ -470,6 +509,7 @@ python scripts/ai_review.py
 Tất cả quy tắc được lưu trong thư mục `scripts/rule/` dưới dạng file Markdown (`.md`)
 
 Hiện có 3 file quy tắc:
+
 - **[CLEAN_ARCHITECTURE_RULES.md](scripts/rule/CLEAN_ARCHITECTURE_RULES.md)** - Quy tắc Clean Architecture
 - **[GETX_CONTROLLER_RULES.md](scripts/rule/GETX_CONTROLLER_RULES.md)** - Quy tắc GetX
 - **[CODING_RULES.md](scripts/rule/CODING_RULES.md)** - Quy tắc code chung (naming, assets, i18n...)
@@ -478,9 +518,9 @@ Hiện có 3 file quy tắc:
 
 **Cách 1: Sửa file quy tắc có sẵn**
 
-Ví dụ muốn thay đổi quy tắc GetX:
+Ví dụ muốn thay đổi quy tắc:
 
-1. Mở file `scripts/rule/GETX_CONTROLLER_RULES.md`
+1. Mở file `scripts/rules/[folder code rules]/*.md`
 2. Sửa nội dung theo ý muốn (bằng tiếng Việt hoặc tiếng Anh đều được)
 3. Lưu file
 4. Lần review sau AI sẽ dùng quy tắc mới
@@ -489,8 +529,9 @@ Ví dụ muốn thay đổi quy tắc GetX:
 
 Ví dụ muốn thêm quy tắc về testing:
 
-1. Tạo file mới: `scripts/rule/TESTING_RULES.md`
+1. Tạo file mới: `scripts/rules/TESTING_RULES.md`
 2. Viết quy tắc:
+
    ```markdown
    # Testing Rules
 
@@ -498,9 +539,10 @@ Ví dụ muốn thêm quy tắc về testing:
    - Coverage must be > 80%
    - Use mockito for mocking
    ```
+
 3. Lưu file → Tự động được load vào prompt gửi AI
 
-> **Lưu ý**: Tất cả file `.md` trong thư mục `rule/` sẽ được AI đọc và áp dụng
+> **Lưu ý**: Tất cả file `.md` trong thư mục `rules/` sẽ được AI đọc và áp dụng
 
 ---
 
@@ -508,7 +550,8 @@ Ví dụ muốn thêm quy tắc về testing:
 
 ### Prompt được lưu ở đâu?
 
-Thư mục `scripts/prompts/` có 2 file:
+Thư mục `scripts/system-prompts/` có 2 file:
+
 - `review_prompt_vi.txt` - Prompt tiếng Việt
 - `review_prompt_en.txt` - Prompt tiếng Anh
 
@@ -516,14 +559,14 @@ Thư mục `scripts/prompts/` có 2 file:
 
 **Ví dụ: Muốn AI review strict hơn**
 
-1. Mở file `scripts/prompts/review_prompt_vi.txt`
+1. Mở file `scripts/system-prompts/review_prompt_vi.txt`
 2. Tìm đoạn:
    ```
-   Bạn là một senior Flutter/Dart engineer...
+   Bạn là một senior software engineer...
    ```
 3. Sửa thành:
    ```
-   Bạn là một SUPER STRICT senior Flutter/Dart engineer.
+   Bạn là một SUPER STRICT senior software engineer.
    Hãy tìm MỌI lỗi, dù là nhỏ nhất.
    Đánh giá rất khắt khe...
    ```
@@ -532,10 +575,12 @@ Thư mục `scripts/prompts/` có 2 file:
 **Biến template có thể dùng:**
 
 Trong prompt, bạn có thể dùng các biến này (sẽ được thay thế tự động):
-- `{coding_rules}` → Nội dung từ các file trong `scripts/rule/`
+
+- `{coding_rules}` → Nội dung từ các file trong `scripts/rules/`
 - `{code_diff}` → Code diff của PR
 
 **Ví dụ prompt:**
+
 ```txt
 Bạn là AI reviewer.
 Review code sau theo các quy tắc:
@@ -546,13 +591,14 @@ Code cần review:
 {code_diff}
 ```
 
-> **Chi tiết**: Xem hướng dẫn đầy đủ tại [scripts/prompts/README.md](scripts/prompts/README.md)
+> **Chi tiết**: Xem hướng dẫn đầy đủ tại [scripts/system-prompts/README.md](scripts/prompts/README.md)
 
 ---
 
 ## Chi phí sử dụng API
 
 #### 🆓 Models miễn phí (Free)
+
 - **Grok 4.1 Fast** (đang dùng) - Hoàn toàn miễn phí
 - **Gemini 2.0 Flash** - Miễn phí
 - **Llama 3.2** - Miễn phí
@@ -560,6 +606,7 @@ Code cần review:
 → **Bạn có thể dùng KHÔNG MẤT TIỀN** nếu chọn model free
 
 #### 💰 Models trả phí (Paid)
+
 - **Claude 3.5 Sonnet** - ~$0.01-0.02 mỗi lần review (rất rẻ)
 - **GPT-4 Turbo** - ~$0.02-0.05 mỗi lần review
 
@@ -568,6 +615,7 @@ Code cần review:
 ### Kiểm soát chi phí
 
 Action tự động:
+
 - ✅ Retry khi bị rate limit (giới hạn số lần gọi)
 - ✅ Xử lý lỗi API một cách graceful
 - ✅ Hỗ trợ reasoning cho model có tính năng này
@@ -651,20 +699,25 @@ _PR này được review theo 3 phần do kích thước lớn._
 ---
 
 ### Phần 1: lib/features/auth/login.dart, logout.dart
+
 🔴 Lỗi Nghiêm Trọng
+
 - File login.dart dòng 42: Dùng Get.put() trong build()
-...
+  ...
 
 ---
 
 ### Phần 2: lib/features/profile/user_profile.dart
+
 ⚠️ Cảnh báo
+
 - File user_profile.dart dòng 15: Hardcode string 'Profile'
-...
+  ...
 
 ---
 
 ### Phần 3: lib/core/utils/...
+
 ✅ Tốt
 ...
 ```
@@ -680,6 +733,7 @@ _PR này được review theo 3 phần do kích thước lớn._
 **Nguyên nhân**: Chưa thêm API key vào GitHub Secrets
 
 **Cách fix**:
+
 1. Vào repo → Settings → Secrets and variables → Actions
 2. Thêm secret tên `OPENROUTER_API_KEY`
 3. Paste API key vào
@@ -689,6 +743,7 @@ _PR này được review theo 3 phần do kích thước lớn._
 **Nguyên nhân**: API key sai hoặc hết hạn
 
 **Cách fix**:
+
 1. Kiểm tra lại API key tại [OpenRouter Keys](https://openrouter.ai/keys)
 2. Đảm bảo tên secret là **chính xác**: `OPENROUTER_API_KEY` (không có dấu cách, đúng chữ hoa/thường)
 3. Tạo API key mới nếu cần
@@ -698,6 +753,7 @@ _PR này được review theo 3 phần do kích thước lớn._
 **Nguyên nhân**: Hết tiền (khi dùng model trả phí)
 
 **Cách fix**:
+
 - **Option 1**: Nạp tiền tại [OpenRouter Credits](https://openrouter.ai/credits)
 - **Option 2**: Đổi sang model miễn phí (xem phần [Cách đổi AI Model](#cách-đổi-ai-model-dành-cho-người-quản-lý-dự-án))
 
@@ -712,17 +768,20 @@ _PR này được review theo 3 phần do kích thước lớn._
 **Nguyên nhân**: Gọi API quá nhiều lần trong thời gian ngắn
 
 **Cách fix**:
+
 - Đợi 1-2 phút rồi thử lại (action tự động retry)
 - Kiểm tra rate limit tại [OpenRouter Settings](https://openrouter.ai/settings/limits)
 
 ### 🤔 Lỗi: "AI says file doesn't exist" hoặc "Missing code review"
 
 **Đã fix trong version mới**:
+
 - ✅ Smart Truncation: Cắt diff theo file, không cắt giữa file
 - ✅ Intelligent Chunking: PR lớn tự động chia nhỏ
 - ✅ Tăng giới hạn: Từ 12k → 100k ký tự
 
 **Nếu vẫn gặp lỗi**:
+
 1. Kiểm tra GitHub Actions logs (tab "Actions" trong repo)
 2. Tìm thông tin về chunking
 3. Báo lỗi tại [GitHub Issues](https://github.com/anthropics/claude-code/issues)
@@ -738,6 +797,7 @@ Contributions welcome! Please open an issue or PR.
 ## Credits
 
 Built with:
+
 - [OpenRouter API](https://openrouter.ai/) - Unified access to 200+ AI models
 - [GitHub Actions](https://github.com/features/actions)
 
@@ -746,6 +806,7 @@ Built with:
 If you're upgrading from the Gemini version (v2.x), just update your workflow:
 
 **Old (Gemini):**
+
 ```yaml
 - uses: pubstar-io/ios-sdk-ai-review-bot@v2
   with:
@@ -754,6 +815,7 @@ If you're upgrading from the Gemini version (v2.x), just update your workflow:
 ```
 
 **New (OpenRouter):**
+
 ```yaml
 - uses: pubstar-io/ios-sdk-ai-review-bot@main
   with:
@@ -762,4 +824,3 @@ If you're upgrading from the Gemini version (v2.x), just update your workflow:
 ```
 
 **Note**: Model selection is now controlled by project maintainers in `config.py`, not by workflow configuration. This ensures consistent review quality across all PRs.
-
