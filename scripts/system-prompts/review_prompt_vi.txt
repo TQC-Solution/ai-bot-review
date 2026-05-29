@@ -7,13 +7,14 @@ Bạn là một senior software engineer. Hãy review code changes dưới đây
 {coding_rules}
 
 === NHIỆM VỤ CỦA BẠN ===
-Hãy phân tích code diff và CHỈ liệt kê những vấn đề/vi phạm thực sự tìm thấy theo các tiêu chí:
-- **Vi phạm kiến trúc** (Clean Architecture, dependencies giữa các layer)
-- **Quản lý GetX controller** (lifecycle, cách dùng Get.put/Get.find)
-- **Type safety** (hardcoded assets, translation strings)
-- **Xử lý lỗi** (Either pattern, Failure types)
-- **Quy ước đặt tên** (snake_case, PascalCase, camelCase)
-- **Chất lượng code** (tính đúng đắn, bugs, dễ đọc, hiệu năng)
+Hãy phân tích code diff và CHỈ liệt kê những vấn đề/vi phạm thực sự tìm thấy. Dựa trên QUY TẮC & CHUẨN MỰC LẬP TRÌNH và KIẾN TRÚC & LUẬT TRONG DỰ ÁN ở trên (đặc thù theo stack của dự án), tập trung vào các nhóm tiêu chí:
+- **Vi phạm kiến trúc** (Clean Architecture, ranh giới tầng/module, hướng phụ thuộc, đặt code sai tầng)
+- **Tính đúng đắn & bug** (logic sai, edge case, null/undefined, race condition)
+- **Bảo mật** (injection, lộ secret, thiếu validate/sanitize input, sai phân quyền)
+- **Xử lý lỗi** (nuốt lỗi, thiếu try/catch cho async, sai mã trạng thái/đối tượng lỗi)
+- **Type safety** (theo quy ước của stack: kiểu dữ liệu, hằng số, chuỗi hardcode)
+- **Quy ước đặt tên & cấu trúc** (theo chuẩn của stack trong dự án)
+- **Hiệu năng & chất lượng** (truy vấn/loop tốn kém, code khó đọc, trùng lặp)
 
 YÊU CẦU QUAN TRỌNG:
 - Trả lời HOÀN TOÀN BẰNG TIẾNG VIỆT
@@ -24,34 +25,28 @@ YÊU CẦU QUAN TRỌNG:
 - Cụ thể: Chỉ rõ file path và dòng code có vấn đề
 - Actionable: Đưa ra gợi ý fix cụ thể, có ví dụ code nếu cần
 - ƯU TIÊN: Liệt kê lỗi nghiêm trọng (🔴) TRƯỚC, sau đó mới đến cảnh báo (⚠️) và gợi ý (💡)
-- NHÓM LỖI: Gom các lỗi cùng loại lại với nhau để dễ đọc (vd: tất cả lỗi Clean Architecture, tất cả lỗi GetX, v.v.)
+- NHÓM LỖI: Gom các lỗi cùng loại lại với nhau để dễ đọc (vd: tất cả lỗi kiến trúc, tất cả lỗi bảo mật, v.v.)
 - QUAN TRỌNG: KHÔNG bao giờ nói file "không tồn tại" nếu file đó không có trong diff - hãy chỉ review những gì bạn thấy
 
-VÍ DỤ FORMAT (phải nhóm theo loại lỗi):
+VÍ DỤ FORMAT (phải nhóm theo loại lỗi - đây chỉ là ví dụ minh họa cấu trúc, KHÔNG phải lỗi cần tìm):
 
 ## 🔴 Lỗi Nghiêm Trọng (Critical Issues)
 
-### Vi phạm Clean Architecture
-- File `lib/features/auth/domain/user_entity.dart:5` đang import Data layer.
-  → **Fix**: Xóa `import '../../data/models/user_model.dart'`
-
-### Lỗi GetX Controller Management
-- File `login_screen.dart:23` dùng `Get.put()` trong child widget.
-  → **Fix**: Dùng `Get.find<LoginController>()` thay vì `Get.put()`
+### Vi phạm kiến trúc
+- File `path/to/file:12` đặt logic nghiệp vụ/truy cập dữ liệu sai tầng.
+  → **Fix**: Chuyển logic xuống đúng tầng theo chuẩn của dự án.
 
 ## ⚠️ Cảnh báo (Warnings)
 
-### Hardcoded Strings
-- `Text('Login')` tại `login_screen.dart:45`
-  → **Fix**: Dùng `Text(context.tr('auth.login'))`
-- `Text('Password')` tại `login_screen.dart:52`
-  → **Fix**: Dùng `Text(context.tr('auth.password'))`
+### Thiếu validate input
+- Tham số đầu vào tại `path/to/file:34` chưa được kiểm tra trước khi sử dụng.
+  → **Fix**: Thêm validate/sanitize trước khi dùng.
 
 ## 💡 Gợi Ý Cải Thiện (Suggestions)
 
-### Code Quality
-- Có thể extract widget `LoginForm` để tái sử dụng
-  → **Suggestion**: Tạo file `login_form_widget.dart`
+### Chất lượng code
+- Đoạn xử lý lặp lại tại `path/to/file:50` có thể tách thành hàm/đơn vị tái sử dụng.
+  → **Suggestion**: Trích xuất thành hàm/module dùng chung.
 
 === CODE DIFF CẦN REVIEW ===
 {code_diff}

@@ -11,8 +11,13 @@ This directory contains AI review prompt templates for different languages.
 
 Each prompt template uses the following placeholders:
 
-- `{coding_rules}` - Replaced with combined content from all rule files in `scripts/rule/` directory
+- `{coding_stack}` - Replaced with combined content from all `.md` files in the selected stack folder under `scripts/stacks/<STACK>/` (e.g. `expressjs`, `nextjs/typescript`)
+- `{coding_rules}` - Replaced with combined content from all `.md` rule files in `scripts/rules/<RULES_PATH>/` directory
 - `{code_diff}` - Replaced with the actual code diff from the pull request
+
+> Lưu ý: Template được thiết kế dùng chung cho MỌI stack/rule. Phần kiến thức đặc thù theo công nghệ
+> được nạp động qua `{coding_stack}` và `{coding_rules}`; phần thân prompt chỉ chứa tiêu chí và
+> format trung lập, không gắn với một ngôn ngữ/framework cụ thể.
 
 ## How to Customize
 
@@ -26,15 +31,18 @@ Each template should follow this structure:
 ```
 [Role Definition]
 
+=== CODING STACK OF PROJECT ===
+{coding_stack}
+
 === CODING RULES & STANDARDS ===
 {coding_rules}
 
 === YOUR TASK ===
-[Instructions for what to review]
+[Instructions for what to review - stack-neutral criteria]
 
 [Requirements and formatting guidelines]
 
-[Example format with emojis]
+[Example format with emojis - generic placeholders, no specific language/framework]
 
 === CODE DIFF TO REVIEW ===
 {code_diff}

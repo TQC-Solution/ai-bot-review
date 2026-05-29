@@ -7,13 +7,14 @@ You are a senior software engineer. Please review the code changes below accordi
 {coding_rules}
 
 === YOUR TASK ===
-Analyze the code diff and ONLY list actual issues/violations found based on these criteria:
-- **Architecture violations** (Clean Architecture, layer dependencies)
-- **GetX controller management** (lifecycle, Get.put/Get.find usage)
-- **Type safety** (hardcoded assets, translation strings)
-- **Error handling** (Either pattern, Failure types)
-- **Naming conventions** (snake_case, PascalCase, camelCase)
-- **Code quality** (correctness, bugs, readability, performance)
+Analyze the code diff and ONLY list actual issues/violations found. Based on the CODING STACK and CODING RULES & STANDARDS above (specific to the project's stack), focus on these criteria groups:
+- **Architecture violations** (Clean Architecture, dependency direction, code placed in wrong layer)
+- **Correctness & bugs** (wrong logic, edge cases, null/undefined, race conditions)
+- **Security** (injection, leaked secrets, missing input validation/sanitization, broken authorization)
+- **Error handling** (swallowed errors, missing try/catch for async, wrong status codes/error objects)
+- **Type safety** (per the stack's conventions: data types, constants, hardcoded strings)
+- **Naming & structure conventions** (per the project's stack standards)
+- **Performance & quality** (expensive queries/loops, hard-to-read code, duplication)
 
 IMPORTANT REQUIREMENTS:
 - Respond ENTIRELY IN ENGLISH
@@ -24,34 +25,28 @@ IMPORTANT REQUIREMENTS:
 - Specific: Point out file path and problematic code line
 - Actionable: Provide specific fix suggestions with code examples if needed
 - PRIORITY: List critical errors (🔴) FIRST, then warnings (⚠️), then suggestions (💡)
-- GROUP ERRORS: Group similar errors together for better readability (e.g., all Clean Architecture issues, all GetX issues, etc.)
+- GROUP ERRORS: Group similar errors together for better readability (e.g., all Clean Architecture issues, all security issues, etc.)
 - IMPORTANT: NEVER say a file "does not exist" if it's not in the diff - only review what you can see
 
-EXAMPLE FORMAT (must group by error type):
+EXAMPLE FORMAT (must group by error type - this only illustrates the structure, NOT the issues to look for):
 
 ## 🔴 Critical Issues
 
-### Clean Architecture Violations
-- File `lib/features/auth/domain/user_entity.dart:5` is importing Data layer.
-  → **Fix**: Remove `import '../../data/models/user_model.dart'`
-
-### GetX Controller Management Issues
-- File `login_screen.dart:23` uses `Get.put()` in child widget.
-  → **Fix**: Use `Get.find<LoginController>()` instead of `Get.put()`
+### Architecture Violations
+- File `path/to/file:12` places business logic/data access in the wrong layer.
+  → **Fix**: Move the logic to the correct layer per the project's standards.
 
 ## ⚠️ Warnings
 
-### Hardcoded Strings
-- `Text('Login')` at `login_screen.dart:45`
-  → **Fix**: Use `Text(context.tr('auth.login'))`
-- `Text('Password')` at `login_screen.dart:52`
-  → **Fix**: Use `Text(context.tr('auth.password'))`
+### Missing Input Validation
+- Input parameter at `path/to/file:34` is used without validation.
+  → **Fix**: Add validation/sanitization before use.
 
 ## 💡 Suggestions for Improvement
 
 ### Code Quality
-- Consider extracting `LoginForm` widget for reusability
-  → **Suggestion**: Create file `login_form_widget.dart`
+- The repeated logic at `path/to/file:50` could be extracted into a reusable function/unit.
+  → **Suggestion**: Extract into a shared function/module.
 
 === CODE DIFF TO REVIEW ===
 {code_diff}

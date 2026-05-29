@@ -195,6 +195,28 @@ Trong file `.github/workflows/ai-review.yml`, phần `with:` có các tham số 
 | `review-language`    | ⭕ Tùy chọn | `vietnamese`                   | Ngôn ngữ review: `vietnamese` hoặc `english`                   |
 | `openrouter-model`   | ⭕ Tùy chọn | `google/gemini-3.1-flash-lite` | OpenRouter model được sử dụng                                  |
 
+### Các giá trị `stack` được hỗ trợ
+
+Giá trị `stack` chính là tên thư mục bên trong `scripts/stacks/`. AI sẽ đọc TẤT CẢ file `.md` nằm trực tiếp trong thư mục đó để biết đang review cho công nghệ nào. Với biến thể TypeScript, thư mục đã gộp sẵn cả quy tắc framework + quy tắc TypeScript `strict`.
+
+| Giá trị `stack`         | Công nghệ                          | File quy tắc được nạp                  |
+| ----------------------- | ---------------------------------- | -------------------------------------- |
+| `expressjs`             | Express.js (JavaScript)            | `express.md`                           |
+| `expressjs/typescript`  | Express.js + TypeScript            | `express.md`, `typescript.md`          |
+| `reactjs`               | React (JavaScript)                 | `react.md`                             |
+| `reactjs/typescript`    | React + TypeScript                 | `react.md`, `typescript.md`            |
+| `nextjs`                | Next.js (JavaScript)               | `next.md`                              |
+| `nextjs/typescript`     | Next.js + TypeScript               | `next.md`, `typescript.md`             |
+| `backend-node`          | Node.js (quản lý package)          | `node.md`, `typescript.md`             |
+| `mobile-ios`            | iOS / Swift                        | `swift.md`                             |
+
+Ví dụ dùng cho dự án Next.js + TypeScript:
+
+```yaml
+with:
+  stack: "nextjs/typescript"
+```
+
 ### Ví dụ: Đổi sang review bằng tiếng Anh
 
 Sửa file `.github/workflows/ai-review.yml`:
