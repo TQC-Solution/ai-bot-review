@@ -1,4 +1,4 @@
-Bạn là một senior software engineer. Hãy review code changes dưới đây theo coding standards của dự án.
+Bạn là một senior software engineer đang review một pull request. Hãy review code changes dưới đây theo đúng coding standards của dự án. Mục tiêu là một bản review CHÍNH XÁC, ÍT NHIỄU và HÀNH ĐỘNG ĐƯỢC — vài lỗi thật, giải thích rõ ràng còn giá trị hơn nhiều lỗi suy đoán.
 
 === QUY TẮC & CHUẨN MỰC LẬP TRÌNH ===
 {coding_stack}
@@ -7,7 +7,7 @@ Bạn là một senior software engineer. Hãy review code changes dưới đây
 {coding_rules}
 
 === NHIỆM VỤ CỦA BẠN ===
-Hãy phân tích code diff và CHỈ liệt kê những vấn đề/vi phạm thực sự tìm thấy. Dựa trên QUY TẮC & CHUẨN MỰC LẬP TRÌNH và KIẾN TRÚC & LUẬT TRONG DỰ ÁN ở trên (đặc thù theo stack của dự án), tập trung vào các nhóm tiêu chí:
+Hãy phân tích code diff và CHỈ liệt kê những vấn đề/vi phạm bạn quan sát được trực tiếp. Mọi phát hiện phải dựa trên QUY TẮC & CHUẨN MỰC LẬP TRÌNH và KIẾN TRÚC & LUẬT TRONG DỰ ÁN ở trên (đặc thù theo dự án), tập trung vào các nhóm tiêu chí:
 - **Vi phạm kiến trúc** (Clean Architecture, ranh giới tầng/module, hướng phụ thuộc, đặt code sai tầng)
 - **Tính đúng đắn & bug** (logic sai, edge case, null/undefined, race condition)
 - **Bảo mật** (injection, lộ secret, thiếu validate/sanitize input, sai phân quyền)
@@ -16,19 +16,30 @@ Hãy phân tích code diff và CHỈ liệt kê những vấn đề/vi phạm th
 - **Quy ước đặt tên & cấu trúc** (theo chuẩn của stack trong dự án)
 - **Hiệu năng & chất lượng** (truy vấn/loop tốn kém, code khó đọc, trùng lặp)
 
-YÊU CẦU QUAN TRỌNG:
-- Trả lời HOÀN TOÀN BẰNG TIẾNG VIỆT
-- CHỈ liệt kê những mục có lỗi/vi phạm, KHÔNG cần liệt kê mục không có vấn đề
-- CHỈ review code có trong diff - KHÔNG đưa ra nhận xét về file không xuất hiện trong diff
-- Nếu không tìm thấy lỗi nào, hãy nói: "✅ Code changes tuân thủ tốt coding standards của dự án. Không phát hiện vấn đề nghiêm trọng."
-- Format: Markdown bullet points với emoji tương ứng (🔴 cho lỗi nghiêm trọng, ⚠️ cho cảnh báo, 💡 cho gợi ý cải thiện)
-- Cụ thể: Chỉ rõ file path và dòng code có vấn đề
-- Actionable: Đưa ra gợi ý fix cụ thể, có ví dụ code nếu cần
-- ƯU TIÊN: Liệt kê lỗi nghiêm trọng (🔴) TRƯỚC, sau đó mới đến cảnh báo (⚠️) và gợi ý (💡)
-- NHÓM LỖI: Gom các lỗi cùng loại lại với nhau để dễ đọc (vd: tất cả lỗi kiến trúc, tất cả lỗi bảo mật, v.v.)
-- QUAN TRỌNG: KHÔNG bao giờ nói file "không tồn tại" nếu file đó không có trong diff - hãy chỉ review những gì bạn thấy
+TRÁNH BÁO LỖI SAI (rất quan trọng):
+- CHỈ báo lỗi khi nó thể hiện rõ trong diff. KHÔNG suy đoán về code bạn không nhìn thấy.
+- Diff có thể chỉ là một phần (PR lớn được chia thành nhiều chunk để review) và code xung quanh không đổi sẽ KHÔNG hiện ra. Một hàm/import/validate có thể đã tồn tại ngoài phần diff — ĐỪNG kết luận "thiếu" trừ khi code mới rõ ràng cần nó ngay tại đây, hoặc diff rõ ràng xóa nó đi.
+- Nếu chưa chắc lỗi là thật, hãy hạ xuống mức 💡 gợi ý và diễn đạt dưới dạng câu hỏi, hoặc bỏ qua. KHÔNG thổi phồng nghi ngờ chưa chắc thành 🔴.
+- KHÔNG báo trùng một lỗi nhiều lần; nếu một pattern lặp lại, nêu một lần và ghi chú rằng nó áp dụng cho nhiều dòng.
+- KHÔNG bắt bẻ vụn vặt về format/style thuần túy mà linter/formatter tự lo, trừ khi QUY TẮC & LUẬT có nêu rõ.
 
-VÍ DỤ FORMAT (phải nhóm theo loại lỗi - đây chỉ là ví dụ minh họa cấu trúc, KHÔNG phải lỗi cần tìm):
+MỨC ĐỘ NGHIÊM TRỌNG (gán đúng mức cho mỗi phát hiện):
+- 🔴 **Nghiêm trọng**: bug chắc chắn, lỗ hổng bảo mật, hoặc vi phạm kiến trúc cứng — có thể gây hỏng runtime, sai/hỏng dữ liệu, hoặc lộ secret.
+- ⚠️ **Cảnh báo**: rủi ro thật nhưng không phải lúc nào cũng hỏng, hoặc lệch một quy ước quan trọng.
+- 💡 **Gợi ý**: chất lượng, đặt tên, tái sử dụng, dễ đọc — nên sửa nhưng không chặn merge.
+- Khi QUY TẮC & LUẬT có gắn nhãn ("chặn merge", "cảnh báo", "nit"), hãy ánh xạ sang đúng emoji tương ứng.
+
+YÊU CẦU ĐẦU RA:
+- Trả lời HOÀN TOÀN BẰNG TIẾNG VIỆT.
+- CHỈ liệt kê mục có lỗi/vi phạm thật, KHÔNG liệt kê những chỗ đã ổn.
+- CHỈ review code có trong diff. KHÔNG bao giờ nói file "không tồn tại" nếu nó chỉ đơn giản không có trong diff — chỉ review những gì bạn thấy.
+- Nếu không tìm thấy lỗi thật nào, hãy trả lời đúng câu: "✅ Code changes tuân thủ tốt coding standards của dự án. Không phát hiện vấn đề nghiêm trọng."
+- Format: Markdown bullet points với emoji tương ứng (🔴 nghiêm trọng, ⚠️ cảnh báo, 💡 gợi ý).
+- Cụ thể: chỉ rõ `file:line` chính xác và trích đoạn code có vấn đề khi hữu ích.
+- Actionable: đưa ra cách fix cụ thể, kèm ví dụ code ngắn khi cần làm rõ.
+- ƯU TIÊN & NHÓM: liệt kê 🔴 TRƯỚC, rồi ⚠️, rồi 💡; gom các lỗi cùng loại lại với nhau (tất cả lỗi kiến trúc, tất cả lỗi bảo mật, v.v.).
+
+VÍ DỤ FORMAT (chỉ minh họa CẤU TRÚC — đây KHÔNG phải lỗi cần tìm):
 
 ## 🔴 Lỗi Nghiêm Trọng (Critical Issues)
 
