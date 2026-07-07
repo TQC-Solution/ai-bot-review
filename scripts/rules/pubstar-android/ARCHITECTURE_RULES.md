@@ -262,3 +262,37 @@ flowchart TD
 - [ ] Thread/lifecycle leak? (§6)
 - [ ] Dependency transitive / Proguard? (§10)
 - [ ] Build output / secrets / PII log? (§8, §7)
+
+---
+
+## 15. Quy tắc chấm mức độ (Severity) — chống false-critical
+
+Mọi finding PHẢI được chấm mức độ theo các quy tắc dưới đây. Khi phân vân giữa hai mức → chọn mức **thấp hơn**.
+
+### 15.1. Điều kiện BẮT BUỘC để gắn 🔴 Critical
+
+Một finding chỉ được gắn 🔴 Critical khi thỏa **TẤT CẢ**:
+
+1. **Lỗi nằm trong code của diff đang review** (dòng thêm/sửa), không phải code có sẵn ngoài diff, không phải code giả định trong tương lai.
+2. **Chỉ ra được kịch bản lỗi cụ thể, tái hiện được**: input/trạng thái nào → dẫn đến crash, sai dữ liệu, leak, race, ANR, hoặc sai số liệu report. Phải nêu rõ chuỗi bước, không dùng các cụm mơ hồ như "rủi ro tiềm ẩn", "có thể", "nếu sau này".
+3. **Chưa được xử lý trong chính diff**: nếu diff đã có guard/lock/annotation/bound xử lý đúng vấn đề đó thì KHÔNG được nêu lại như lỗi — tối đa ghi nhận ở phần ✅.
+
+### 15.2. Những thứ KHÔNG BAO GIỜ là 🔴 Critical
+
+- Rủi ro **giả định về code tương lai** ("nếu sau này ai đó thêm hàm X mà quên lock…"). Code tương lai chưa tồn tại → tối đa 💡 Suggestion (đề xuất phòng ngừa như `@GuardedBy`, comment ràng buộc).
+- Finding mà **fix đề xuất đã hiện diện sẵn trong diff** (ví dụ: đề nghị "thêm private/lock/@GuardedBy" trong khi diff đã có đủ). Trường hợp này KHÔNG được nêu như lỗi ở bất kỳ mức nào.
+- Vấn đề **đã được nêu và đã được xử lý ở vòng review trước** của cùng PR — không nêu lại với mức cao hơn.
+- Sở thích về style, naming, cấu trúc dữ liệu "idiomatic hơn" khi code hiện tại đúng chức năng → 💡 Suggestion.
+- Collection không thread-safe (`LinkedHashMap`, `ArrayList`, …) **đã được bọc trong lock/synchronized đúng cách** ở mọi điểm truy cập trong diff → không phải lỗi concurrency.
+
+### 15.3. Định nghĩa các mức
+
+| Mức | Điều kiện |
+|-----|-----------|
+| 🔴 Critical | Thỏa toàn bộ §15.1 — có kịch bản lỗi cụ thể trong code của diff |
+| ⚠️ Warning | Vi phạm rule trong tài liệu này (§1–§13) nhưng chưa chỉ ra được kịch bản lỗi tái hiện được; hoặc thiếu test §13.4 khi đụng CRITICAL symbol |
+| 💡 Suggestion | Cải thiện chất lượng/phòng ngừa/readability; mọi rủi ro giả định tương lai nằm ở đây |
+
+### 15.4. Khi không có lỗi thật
+
+Nếu không có finding nào thỏa §15.1 → ghi rõ **"Không phát hiện lỗi nghiêm trọng"** ở mục 🔴. TUYỆT ĐỐI không hạ tiêu chí để lấp đầy mục Critical; một review "sạch" là kết quả hợp lệ và hữu ích.
