@@ -1,6 +1,6 @@
-# AI Code Reviewer (OpenRouter)
+# AI Code Reviewer
 
-> **🎉 NEW: v3.0 - OpenRouter Integration!** Now supports multiple AI providers through OpenRouter API. Easily switch between models like Grok, Claude, GPT-4, Gemini, and more by just changing a config parameter. No more vendor lock-in!
+> **🎉 NEW: v5.0 - Cursor Agent SDK!** Review chạy bằng Cursor API key (`CURSOR_API_KEY`). CI vẫn dùng `openrouter-api-key` / `secrets.OPENROUTER_API_KEY` — value phải là key Cursor.
 
 ## Dự án này làm gì?
 
@@ -9,7 +9,7 @@
 **Chi tiết hơn**:
 
 - Đây là một GitHub Action (tự động chạy khi có PR)
-- Sử dụng AI (như ChatGPT, Claude, Gemini...) để phân tích code bạn viết trong PR
+- Sử dụng Cursor Agent (Cursor API key) để phân tích code bạn viết trong PR
 - Kiểm tra theo các quy tắc như Clean Architecture, GetX patterns, chuẩn code...
 - Đưa ra **1 comment tổng hợp** trên PR với các góp ý cụ thể
 
@@ -27,11 +27,10 @@ Bạn nhận được comment:
 
 ## Features
 
-- ✅ **200+ AI Models Support**: Use any model from OpenRouter (Grok, Claude, GPT-4, Gemini, Llama, Mistral, etc.)
-- ✅ **Easy Model Switching**: Change AI provider with just one config parameter - no code changes needed
-- ✅ **Free & Paid Options**: Choose from free models (Grok 4.1, Gemini 2.0) or premium ones (Claude 3.5, GPT-4)
-- ✅ **Reasoning Support**: Enable advanced reasoning for supported models (e.g., Grok 4.1)
-- ✅ **Request Tracking**: Automatically sends project name in `X-Title` header for usage tracking on OpenRouter dashboard
+- ✅ **Cursor Agent SDK**: Gọi Cursor agent local, text-only (không sửa file)
+- ✅ **CI input giữ nguyên**: Vẫn dùng `openrouter-api-key` / `secrets.OPENROUTER_API_KEY` (value là Cursor API key)
+- ✅ **Model fix cứng trong repo**: Không đọc `openrouter-model` từ CI/CD; đổi model ở `scripts/reviewer/config.py`
+- ✅ **Cursor Models**: `composer-2.5` (mặc định)
 - ✅ **Intelligent Chunking**: Automatically splits large PRs (>5 files, >30k chars) into reviewable chunks to ensure complete coverage
 - ✅ **Clean Architecture Review**: Validates layer dependencies and architectural patterns
 - ✅ **GetX Best Practices**: Checks controller lifecycle and instance management
@@ -94,36 +93,36 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # Step 2: Chạy AI Code Reviewer action đã được tạo sẵn (pubstar-io/ai-review-bot)
-      - name: Run OpenRouter AI Code Reviewer
-        uses: pubstar-io/ai-review-bot@main
+      # Step 2: Chạy AI Code Reviewer action đã được tạo sẵn (TQC-Solution/ai-bot-review)
+      - name: Run Cursor AI Code Reviewer
+        uses: TQC-Solution/ai-bot-review@main
         with:
-          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }} # OpenRouter API key (gán giá trị trong secrets của repository)
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }} # Tên secret giữ nguyên; value phải là Cursor API key
           github-token: ${{ secrets.GITHUB_TOKEN }} # GitHub token (giá trị này sẽ được tự động cung cấp bởi GitHub Actions)
           stack: "mobile-ios" # Stack của công nghệ mà dự án sử dụng (giá trị của stack là các folder nằm bên trong scripts/stacks)
           review-language: "vietnamese" # Ngôn ngữ cho comment review: 'vietnamese' hoặc 'english' (mặc định: vietnamese)
           rules-path: "pubstar-ios" # Đường dẫn đến thư mục chứa các file .md rules review
-          openrouter-model: "google/gemini-3.1-flash-lite" # OpenRouter model to use (default: google/gemini-3.1-flash-lite)
+          openrouter-model: "google/gemini-3.1-flash-lite" # Bị bỏ qua. Model fix cứng trong repo
 ```
 
 ### Bước 3: Lấy API Key và cấu hình
 
-**3.1. Lấy OpenRouter API Key**
+**3.1. Lấy Cursor API Key**
 
-1. Vào [OpenRouter Keys](https://openrouter.ai/keys)
-2. Đăng ký tài khoản (miễn phí)
-3. Click "Create Key" → Tạo API key mới
+1. Vào [Cursor Dashboard → API Keys](https://cursor.com/dashboard/api)
+2. Đăng nhập tài khoản Cursor
+3. Click **"New API Key"** → Tạo API key mới
 4. **Copy key này** (chỉ hiển thị 1 lần, nếu mất phải tạo lại)
-5. _(Tùy chọn)_ Nạp tiền nếu dùng AI trả phí, **hoặc dùng AI miễn phí** (Grok, Gemini)
+5. Spend/usage xem tại [Cursor Usage](https://cursor.com/dashboard/usage)
 
 **3.2. Lưu API Key vào GitHub Secret**
 
 1. Vào repo của bạn trên GitHub
 2. Click **Settings** → **Secrets and variables** → **Actions**
-3. Click nút **"New repository secret"**
+3. Click nút **"New repository secret"** (hoặc edit secret đã có)
 4. Điền:
-   - **Name**: `OPENROUTER_API_KEY` (phải đúng tên này)
-   - **Value**: Paste API key bạn copy ở bước 3.1
+   - **Name**: `OPENROUTER_API_KEY` (giữ nguyên tên này, không đổi)
+   - **Value**: Paste **Cursor API key** — không dùng key OpenRouter/Anthropic cũ
 5. Click **"Add secret"**
 
 **3.3. Tạo Pull Request để test**
@@ -145,38 +144,25 @@ Mỗi model có:
 
 ### Model ví dụ
 
-Dự án đang dùng: **Grok 4.1 Fast (Free)**
+Dự án đang dùng: **composer-2.5**
 
-- ✅ Miễn phí
-- ✅ Nhanh
-- ✅ Hỗ trợ reasoning (suy luận nâng cao)
+- ✅ Pool Cursor Models (included nhiều hơn Pro)
+- ✅ Rẻ hơn Claude Sonnet, phù hợp CI review
+- ✅ Text-only review qua Cursor CLI
 
 ### Cách đổi model
 
-> **Lưu ý**: Chỉ người quản lý dự án mới có thể đổi model (user thường không đổi được)
+Model **không đọc từ CI/CD**. `openrouter-model` trong workflow bị bỏ qua.
 
-**Bước 1**: Mở file [`scripts/reviewer/config.py`](scripts/reviewer/config.py)
-
-**Bước 2**: Tìm dòng 28, sửa giá trị `OPENROUTER_MODEL`:
+Sửa `CURSOR_MODEL` trong [`scripts/reviewer/config.py`](scripts/reviewer/config.py):
 
 ```python
-# Dòng 28 trong config.py
-OPENROUTER_MODEL = "x-ai/grok-4.1-fast:free"  # ← Đổi giá trị này
+CURSOR_MODEL = "composer-2.5"  # ← Đổi giá trị này
 
-# Ví dụ các model có thể dùng:
-# ┌─────────────────────────────────────┬──────────┬───────────────┐
-# │ Model                               │ Loại     │ Đặc điểm      │
-# ├─────────────────────────────────────┼──────────┼───────────────┤
-# │ "x-ai/grok-4.1-fast:free"           │ FREE     │ Nhanh         │
-# │ "google/gemini-2.0-flash-exp:free"  │ FREE     │ Thông minh    │
-# │ "anthropic/claude-3.5-sonnet"       │ PAID     │ Rất thông minh│
-# │ "openai/gpt-4-turbo"                │ PAID     │ Đa năng       │
-# └─────────────────────────────────────┴──────────┴───────────────┘
+# Ví dụ: "composer-2.5", "claude-sonnet-5", "auto"
 ```
 
-**Bước 3**: Lưu file và commit
-
-**Bước 4**: Xem danh sách đầy đủ tại [OpenRouter Model List](https://openrouter.ai/models)
+Xem model có trên tài khoản tại [Cursor SDK docs](https://cursor.com/docs/sdk/python) (`Cursor.models.list()`).
 
 ---
 
@@ -186,29 +172,29 @@ OPENROUTER_MODEL = "x-ai/grok-4.1-fast:free"  # ← Đổi giá trị này
 
 Trong file `.github/workflows/ai-review.yml`, phần `with:` có các tham số sau:
 
-| Tham số              | Bắt buộc?   | Mặc định                       | Giải thích                                                     |
-| -------------------- | ----------- | ------------------------------ | -------------------------------------------------------------- |
-| `openrouter-api-key` | ✅ Bắt buộc | -                              | API key của OpenRouter (đã setup ở bước 3)                     |
-| `github-token`       | ✅ Bắt buộc | -                              | Token GitHub (dùng `${{ secrets.GITHUB_TOKEN }}` - tự động có) |
-| `stack`              | ✅ Bắt buộc | -                              | Đường dẫn đến thư mục chứa các file .md stack công nghệ        |
-| `rules-path`         | ⭕ Tùy chọn | -                              | Đường dẫn đến thư mục chứa các file .md rules review           |
-| `review-language`    | ⭕ Tùy chọn | `vietnamese`                   | Ngôn ngữ review: `vietnamese` hoặc `english`                   |
-| `openrouter-model`   | ⭕ Tùy chọn | `google/gemini-3.1-flash-lite` | OpenRouter model được sử dụng                                  |
+| Tham số              | Bắt buộc?   | Mặc định     | Giải thích                                                       |
+| -------------------- | ----------- | ------------ | ---------------------------------------------------------------- |
+| `openrouter-api-key` | ✅ Bắt buộc | -            | Tên input/secret giữ nguyên. Value phải là Cursor API key        |
+| `github-token`       | ✅ Bắt buộc | -            | Token GitHub (dùng `${{ secrets.GITHUB_TOKEN }}` - tự động có)   |
+| `stack`              | ✅ Bắt buộc | -            | Đường dẫn đến thư mục chứa các file .md stack công nghệ          |
+| `rules-path`         | ✅ Bắt buộc | -            | Đường dẫn đến thư mục chứa các file .md rules review             |
+| `review-language`    | ⭕ Tùy chọn | `vietnamese` | Ngôn ngữ review: `vietnamese` hoặc `english`                     |
+| `openrouter-model`   | ⭕ Tùy chọn | -            | **Bị bỏ qua.** Model fix cứng trong `scripts/reviewer/config.py` |
 
 ### Các giá trị `stack` được hỗ trợ
 
 Giá trị `stack` chính là tên thư mục bên trong `scripts/stacks/`. AI sẽ đọc TẤT CẢ file `.md` nằm trực tiếp trong thư mục đó để biết đang review cho công nghệ nào. Với biến thể TypeScript, thư mục đã gộp sẵn cả quy tắc framework + quy tắc TypeScript `strict`.
 
-| Giá trị `stack`         | Công nghệ                          | File quy tắc được nạp                  |
-| ----------------------- | ---------------------------------- | -------------------------------------- |
-| `expressjs`             | Express.js (JavaScript)            | `express.md`                           |
-| `expressjs/typescript`  | Express.js + TypeScript            | `express.md`, `typescript.md`          |
-| `reactjs`               | React (JavaScript)                 | `react.md`                             |
-| `reactjs/typescript`    | React + TypeScript                 | `react.md`, `typescript.md`            |
-| `nextjs`                | Next.js (JavaScript)               | `next.md`                              |
-| `nextjs/typescript`     | Next.js + TypeScript               | `next.md`, `typescript.md`             |
-| `backend-node`          | Node.js (quản lý package)          | `node.md`, `typescript.md`             |
-| `mobile-ios`            | iOS / Swift                        | `swift.md`                             |
+| Giá trị `stack`        | Công nghệ                 | File quy tắc được nạp         |
+| ---------------------- | ------------------------- | ----------------------------- |
+| `expressjs`            | Express.js (JavaScript)   | `express.md`                  |
+| `expressjs/typescript` | Express.js + TypeScript   | `express.md`, `typescript.md` |
+| `reactjs`              | React (JavaScript)        | `react.md`                    |
+| `reactjs/typescript`   | React + TypeScript        | `react.md`, `typescript.md`   |
+| `nextjs`               | Next.js (JavaScript)      | `next.md`                     |
+| `nextjs/typescript`    | Next.js + TypeScript      | `next.md`, `typescript.md`    |
+| `backend-node`         | Node.js (quản lý package) | `node.md`, `typescript.md`    |
+| `mobile-ios`           | iOS / Swift               | `swift.md`                    |
 
 Ví dụ dùng cho dự án Next.js + TypeScript:
 
@@ -222,14 +208,14 @@ with:
 Sửa file `.github/workflows/ai-review.yml`:
 
 ```yaml
-- uses: pubstar-io/ios-sdk-ai-review-bot@main
+- uses: TQC-Solution/ai-bot-review@main
   with:
     openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
     github-token: ${{ secrets.GITHUB_TOKEN }}
     rules-path: "pubstar-ios" # Đường dẫn đến thư mục chứa các file .md rules review
     stack: "mobile-ios"
-    review-language: "vietnamese"
-    openrouter-model: "google/gemini-3.1-flash-lite" # ← Đổi model nếu cần
+    review-language: "english"
+    openrouter-model: "google/gemini-3.1-flash-lite" # Bị bỏ qua. Model fix cứng trong repo
 ```
 
 ---
@@ -351,7 +337,7 @@ Either<Failure, User> getUser() {
 │  4. Script Python làm gì?                                   │
 │     a) Lấy code diff từ PR (github_client.py)              │
 │     b) Đọc các quy tắc review (prompt_builder.py)         │
-│     c) Gửi code + quy tắc cho AI (openrouter_client.py)   │
+│     c) Gửi code + quy tắc cho AI (cursor_client.py)       │
 │     d) Nhận kết quả review từ AI                           │
 │     e) Post comment lên PR (github_client.py)              │
 └────────────────────┬────────────────────────────────────────┘
@@ -378,7 +364,7 @@ ai-review-bot/
 │   ├── reviewer/                       # ← Package chứa các modules
 │   │   ├── config.py                  # → Đọc cấu hình (API key, model...)
 │   │   ├── github_client.py           # → Tương tác với GitHub API
-│   │   ├── openrouter_client.py       # → Gọi AI qua OpenRouter
+│   │   ├── cursor_client.py           # → Gọi Cursor Agent SDK
 │   │   ├── prompt_builder.py          # → Xây dựng prompt gửi cho AI
 │   │   ├── diff_chunker.py            # → Chia nhỏ PR lớn thành chunks
 │   │   └── utils.py                   # → Các hàm tiện ích
@@ -437,12 +423,10 @@ ai-review-bot/
    - Đăng comment review lên PR
    - Kiểm tra cấu trúc diff hợp lệ
 
-3. **[openrouter_client.py](scripts/reviewer/openrouter_client.py)** - Gọi AI
-   - Kết nối với OpenRouter API
-   - Hỗ trợ 200+ AI models
+3. **[cursor_client.py](scripts/reviewer/cursor_client.py)** - Gọi AI
+   - Kết nối với Cursor Agent SDK (local, text-only)
+   - Dùng Cursor API key (CI vẫn truyền qua `openrouter-api-key`)
    - Xử lý retry khi bị rate limit
-   - Hỗ trợ reasoning cho model nâng cao
-   - Tự động gửi tên project trong header `X-Title` để tracking usage
 
 4. **[prompt_builder.py](scripts/reviewer/prompt_builder.py)** - Xây dựng prompt
    - Load template prompt (tiếng Việt/Anh)
@@ -498,14 +482,14 @@ pip install -r scripts/requirements.txt
 
 ```bash
 # Các thông tin cần thiết cho script
-export OPENROUTER_API_KEY='sk-or-v1-xxxxxx'            # ← API key OpenRouter
+export OPENROUTER_API_KEY='cursor_xxxxxx'              # ← Tên env giữ nguyên; value là Cursor API key
 export GITHUB_TOKEN='ghp_xxxxxxxxxxxxx'                # ← GitHub Personal Access Token
 export STACK='backend-node'                            # ← stack công nghệ của dự án
 export RULES_PATH='pubstar'                            # ← Thư mục chức luật review code
 export GITHUB_REPOSITORY='owner/repo'                  # ← Tên repo (vd: facebook/react)
 export GITHUB_REF='refs/pull/1/merge'                  # ← Số PR (ví dụ: PR #1)
 export REVIEW_LANGUAGE='vietnamese'                    # ← Ngôn ngữ (vietnamese hoặc english)
-exprot OPENROUTER_MODEL='google/gemini-3.1-flash-lite' # ← Modal dùng để review code
+# Model không đọc từ env — sửa CURSOR_MODEL trong scripts/reviewer/config.py
 ```
 
 > **Lấy GitHub Token ở đâu?**
@@ -619,76 +603,25 @@ Code cần review:
 
 ## Chi phí sử dụng API
 
-#### 🆓 Models miễn phí (Free)
+Cursor SDK **dùng usage/billing của tài khoản Cursor**. Spend hiện trên [Cursor Usage](https://cursor.com/dashboard/usage) với tag SDK.
 
-- **Grok 4.1 Fast** (đang dùng) - Hoàn toàn miễn phí
-- **Gemini 2.0 Flash** - Miễn phí
-- **Llama 3.2** - Miễn phí
+#### 💰 Model mặc định
 
-→ **Bạn có thể dùng KHÔNG MẤT TIỀN** nếu chọn model free
-
-#### 💰 Models trả phí (Paid)
-
-- **Claude 3.5 Sonnet** - ~$0.01-0.02 mỗi lần review (rất rẻ)
-- **GPT-4 Turbo** - ~$0.02-0.05 mỗi lần review
-
-→ Nếu chọn model trả phí, phải nạp tiền vào OpenRouter trước
+- **composer-2.5** — pool Cursor Models (mặc định, tiết kiệm hạn mức Pro)
 
 ### Kiểm soát chi phí
 
 Action tự động:
 
-- ✅ Retry khi bị rate limit (giới hạn số lần gọi)
+- ✅ Retry khi bị rate limit (tôn trọng `retry_after` nếu SDK trả về)
 - ✅ Xử lý lỗi API một cách graceful
-- ✅ Hỗ trợ reasoning cho model có tính năng này
+- ✅ Chunking PR lớn (nhiều lần gọi API hơn, review đầy đủ hơn)
+- ✅ Text-only (`tools=[]`) — agent không sửa file, không chạy tool
 
 ### Xem usage của bạn
 
-- **Dashboard**: [OpenRouter Activity](https://openrouter.ai/activity)
-- **So sánh model**: [OpenRouter Models](https://openrouter.ai/models)
-
-**Khuyến nghị**: Dùng model miễn phí cho dự án cá nhân, model trả phí cho production
-
----
-
-## OpenRouter Request Tracking
-
-Action tự động gửi thông tin project trong mỗi API request để giúp bạn tracking và phân loại usage trên OpenRouter dashboard.
-
-### Cách hoạt động
-
-Mỗi request gửi đến OpenRouter sẽ bao gồm header `X-Title` với tên repository và số PR:
-
-```http
-POST https://openrouter.ai/api/v1/chat/completions
-Headers:
-  Authorization: Bearer sk-or-v1-...
-  Content-Type: application/json
-  X-Title: your-company/your-app - PR #123  ← Tên repo + PR number
-```
-
-### Lợi ích
-
-- 📊 **Theo dõi usage theo project và PR**: Xem chi tiêu của từng repo và từng PR riêng biệt trên [OpenRouter Activity](https://openrouter.ai/activity)
-- 🔍 **Debug dễ dàng**: Biết request nào thuộc PR nào khi có lỗi
-- 💰 **Quản lý chi phí**: Phân tích cost breakdown theo từng dự án và PR cụ thể
-
-### Tùy chỉnh tên hiển thị
-
-Nếu muốn thay đổi tên hiển thị (mặc định là `GITHUB_REPOSITORY - PR #<number>`):
-
-1. Mở file [`scripts/ai_review.py`](scripts/ai_review.py)
-2. Tìm dòng 56-60:
-   ```python
-   openrouter_client = OpenRouterClient(
-       Config.OPENROUTER_API_KEY,
-       project_name=Config.GITHUB_REPOSITORY or "AI Code Review Bot",
-       pr_number=pr_number
-   )
-   ```
-3. Thay đổi theo ý muốn:
-   - Bỏ PR number: Xóa dòng `pr_number=pr_number`
-   - Đổi project name: Thay `Config.GITHUB_REPOSITORY` thành tên tùy chỉnh
+- **Dashboard**: [Cursor Usage](https://cursor.com/dashboard/usage)
+- **API keys**: [Cursor API Keys](https://cursor.com/dashboard/api)
 
 ---
 
@@ -750,34 +683,34 @@ _PR này được review theo 3 phần do kích thước lớn._
 
 ## Xử lý lỗi (Troubleshooting)
 
-### ❌ Lỗi: "OPENROUTER_API_KEY not set"
+### ❌ Lỗi: "API key is not set"
 
 **Nguyên nhân**: Chưa thêm API key vào GitHub Secrets
 
 **Cách fix**:
 
 1. Vào repo → Settings → Secrets and variables → Actions
-2. Thêm secret tên `OPENROUTER_API_KEY`
-3. Paste API key vào
+2. Thêm / cập nhật secret tên `OPENROUTER_API_KEY`
+3. Paste **Cursor API key** vào
 
-### ❌ Lỗi: "Invalid API key (401)"
+### ❌ Lỗi: "Invalid API key" / AuthenticationError
 
-**Nguyên nhân**: API key sai hoặc hết hạn
-
-**Cách fix**:
-
-1. Kiểm tra lại API key tại [OpenRouter Keys](https://openrouter.ai/keys)
-2. Đảm bảo tên secret là **chính xác**: `OPENROUTER_API_KEY` (không có dấu cách, đúng chữ hoa/thường)
-3. Tạo API key mới nếu cần
-
-### ❌ Lỗi: "Insufficient credits (402)"
-
-**Nguyên nhân**: Hết tiền (khi dùng model trả phí)
+**Nguyên nhân**: API key sai, hết hạn, hoặc vẫn đang dùng key OpenRouter/Anthropic cũ
 
 **Cách fix**:
 
-- **Option 1**: Nạp tiền tại [OpenRouter Credits](https://openrouter.ai/credits)
-- **Option 2**: Đổi sang model miễn phí (xem phần [Cách đổi AI Model](#cách-đổi-ai-model-dành-cho-người-quản-lý-dự-án))
+1. Lấy key tại [Cursor Dashboard → API Keys](https://cursor.com/dashboard/api)
+2. Đảm bảo tên secret là **chính xác**: `OPENROUTER_API_KEY`
+3. Value phải là Cursor API key, không phải `sk-or-v1-` hay `sk-ant-`
+
+### ❌ Lỗi: hết usage / RateLimitError
+
+**Nguyên nhân**: Hết hạn mức Cursor hoặc gọi quá nhiều
+
+**Cách fix**:
+
+- Kiểm tra [Cursor Usage](https://cursor.com/dashboard/usage)
+- Đợi rồi re-run job (action tự động retry)
 
 ### ⚠️ Cảnh báo: "PR diff is empty"
 
@@ -785,14 +718,14 @@ _PR này được review theo 3 phần do kích thước lớn._
 
 **Giải thích**: Bình thường, không phải lỗi. PR trống nên không có gì để review.
 
-### ⏱️ Lỗi: "Rate limit exceeded (429)"
+### ⏱️ Lỗi: "Rate limit exceeded"
 
-**Nguyên nhân**: Gọi API quá nhiều lần trong thời gian ngắn
+**Nguyên nhân**: Gọi API quá nhiều lần, hoặc Cursor đang rate-limit
 
 **Cách fix**:
 
 - Đợi 1-2 phút rồi thử lại (action tự động retry)
-- Kiểm tra rate limit tại [OpenRouter Settings](https://openrouter.ai/settings/limits)
+- Kiểm tra usage tại [Cursor Usage](https://cursor.com/dashboard/usage)
 
 ### 🤔 Lỗi: "AI says file doesn't exist" hoặc "Missing code review"
 
@@ -806,7 +739,7 @@ _PR này được review theo 3 phần do kích thước lớn._
 
 1. Kiểm tra GitHub Actions logs (tab "Actions" trong repo)
 2. Tìm thông tin về chunking
-3. Báo lỗi tại [GitHub Issues](https://github.com/anthropics/claude-code/issues)
+3. Báo lỗi tại GitHub Issues của repo bot này
 
 ## License
 
@@ -820,29 +753,24 @@ Contributions welcome! Please open an issue or PR.
 
 Built with:
 
-- [OpenRouter API](https://openrouter.ai/) - Unified access to 200+ AI models
+- [Cursor Python SDK](https://cursor.com/docs/sdk/python) - Agent SDK
 - [GitHub Actions](https://github.com/features/actions)
 
-## Migration from Gemini
+## Migration sang Cursor API key
 
-If you're upgrading from the Gemini version (v2.x), just update your workflow:
-
-**Old (Gemini):**
+Workflow YAML **không cần đổi** tên input/secret:
 
 ```yaml
-- uses: pubstar-io/ios-sdk-ai-review-bot@v2
-  with:
-    gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-**New (OpenRouter):**
-
-```yaml
-- uses: pubstar-io/ios-sdk-ai-review-bot@main
+- uses: TQC-Solution/ai-bot-review@main
   with:
     openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
     github-token: ${{ secrets.GITHUB_TOKEN }}
+    openrouter-model: "google/gemini-3.1-flash-lite" # bị bỏ qua
 ```
 
-**Note**: Model selection is now controlled by project maintainers in `config.py`, not by workflow configuration. This ensures consistent review quality across all PRs.
+**Chỉ cần làm:**
+
+1. Tạo API key tại [Cursor Dashboard → API Keys](https://cursor.com/dashboard/api)
+2. Cập nhật GitHub Secret `OPENROUTER_API_KEY` — thay value bằng Cursor API key
+3. Xem usage tại [Cursor Usage](https://cursor.com/dashboard/usage)
+4. Model đang dùng: `composer-2.5` (sửa trong `scripts/reviewer/config.py` nếu muốn đổi)

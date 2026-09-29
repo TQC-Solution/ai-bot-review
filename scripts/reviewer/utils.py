@@ -61,13 +61,13 @@ def create_fallback_comment(language: str, error_message: str) -> str:
     if language == "english":
         return (
             "⚠️ AI review could not be generated due to configuration or API error.\n\n"
-            "Please ensure OPENROUTER_API_KEY is set correctly.\n\n"
+            "Please ensure OPENROUTER_API_KEY is set correctly (value must be a Cursor API key).\n\n"
             f"Error details:\n```\n{error_message}\n```"
         )
     else:
         return (
             "⚠️ AI review không thể tạo được do lỗi cấu hình hoặc API.\n\n"
-            "Đảm bảo OPENROUTER_API_KEY đã được set đúng.\n\n"
+            "Đảm bảo OPENROUTER_API_KEY đã được set đúng (value phải là Cursor API key).\n\n"
             f"Chi tiết lỗi:\n```\n{error_message}\n```"
         )
 

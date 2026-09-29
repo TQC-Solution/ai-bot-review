@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AI reviewer script for GitHub Actions using OpenRouter AI.
+"""AI reviewer script for GitHub Actions using Cursor Agent SDK.
 
 This is the main orchestrator that coordinates all components:
 - Configuration validation
@@ -11,7 +11,7 @@ This is the main orchestrator that coordinates all components:
 For detailed implementation, see the reviewer package modules:
 - config.py: Configuration and environment variables
 - github_client.py: GitHub API operations
-- openrouter_client.py: OpenRouter AI integration
+- cursor_client.py: Cursor Agent SDK integration
 - prompt_builder.py: Prompt construction
 - utils.py: Helper functions
 """
@@ -20,7 +20,7 @@ import sys
 
 from reviewer.config import Config
 from reviewer.github_client import GitHubClient, GitHubAPIError
-from reviewer.openrouter_client import OpenRouterClient, OpenRouterAPIError
+from reviewer.cursor_client import CursorClient, CursorAPIError
 from reviewer.prompt_builder import PromptBuilder
 from reviewer.utils import (
     get_pr_number_from_ref,
@@ -53,8 +53,8 @@ def main():
 
     # Initialize clients
     github_client = GitHubClient(Config.GITHUB_REPOSITORY, Config.GITHUB_TOKEN)
-    openrouter_client = OpenRouterClient(
-        Config.OPENROUTER_API_KEY,
+    cursor_client = CursorClient(
+        Config.CURSOR_API_KEY,
         project_name=Config.GITHUB_REPOSITORY or "AI Code Review Bot",
         pr_number=pr_number
     )
@@ -80,17 +80,17 @@ def main():
                 print(f"💬 Reviewing chunk {idx + 1}/{len(prompt_chunks)} "
                       f"({len(chunk.files)} files: {', '.join(chunk.files[:3])}...)")
             else:
-                print("💬 Sending prompt to OpenRouter AI...")
+                print("💬 Sending prompt to Cursor...")
 
-            review = openrouter_client.generate_review(prompt)
+            review = cursor_client.generate_review(prompt)
             all_reviews.append({
                 'chunk_index': idx,
                 'files': chunk.files,
                 'review': review
             })
 
-        except OpenRouterAPIError as e:
-            print(f"❌ OpenRouter call failed for chunk {idx + 1}: {e}")
+        except CursorAPIError as e:
+            print(f"❌ Cursor call failed for chunk {idx + 1}: {e}")
 
             # If first chunk fails, post fallback comment and exit
             if idx == 0:

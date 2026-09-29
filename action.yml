@@ -1,44 +1,40 @@
-name: 'AI Code Reviewer (OpenRouter)'
-description: 'Automated code review using OpenRouter AI with Clean Architecture standards'
-author: 'vincetran'
+name: "AI Code Reviewer"
+description: "Automated code review using Cursor Agent SDK with Clean Architecture standards"
+author: "vincetran"
 
 branding:
-  icon: 'check-circle'
-  color: 'blue'
+  icon: "check-circle"
+  color: "blue"
 
 inputs:
   openrouter-api-key:
-    description: 'OpenRouter API key for AI code review'
+    description: "API key for Cursor review. Secret name stays OPENROUTER_API_KEY; value must be a Cursor API key"
     required: true
   github-token:
-    description: 'GitHub token for posting PR comments (use secrets.GITHUB_TOKEN)'
+    description: "GitHub token for posting PR comments (use secrets.GITHUB_TOKEN)"
     required: true
   stack:
-    description: 'Stack công nghệ mà dự án đang sử dụng'
+    description: "Stack công nghệ mà dự án đang sử dụng"
     required: true
   rules-path:
-    description: 'Đường dẫn đến thư mục chứa các file .md rules review'
+    description: "Đường dẫn đến thư mục chứa các file .md rules review"
     required: true
   review-language:
     description: 'Language for code review comments: "vietnamese" or "english"'
     required: false
-    default: 'vietnamese'
-  rule-path:
-    description: 'Đường dẫn đến thư mục chứa các file .md rules review'
-    required: true
-    default: 'empty'
+    default: "vietnamese"
   openrouter-model:
-    description: 'OpenRouter model to use for code review (controlled by maintainers)'
+    description: "Ignored. Model is hardcoded in this repo (scripts/reviewer/config.py). Kept so existing CI YAML does not break."
     required: false
-    default: 'google/gemini-3.1-flash-lite'
+    default: ""
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: "3.11"
 
     - name: Install Python dependencies
       shell: bash
@@ -46,15 +42,22 @@ runs:
         python -m pip install --upgrade pip
         pip install -r ${{ github.action_path }}/scripts/requirements.txt
 
-    - name: Run OpenRouter AI Code Reviewer
+    - name: Install Cursor CLI
+      shell: bash
+      run: |
+        curl https://cursor.com/install -fsS | bash
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
+
+    - name: Run Cursor AI Code Reviewer
       shell: bash
       env:
-        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+        CURSOR_API_KEY: ${{ inputs.openrouter-api-key }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
         STACK: ${{ inputs.stack }}
-        RULES_PATH: ${{ inputs.rule-path }}
+        RULES_PATH: ${{ inputs.rules-path }}
         GITHUB_REPOSITORY: ${{ github.repository }}
         GITHUB_REF: ${{ github.ref }}
         REVIEW_LANGUAGE: ${{ inputs.review-language }}
-        OPENROUTER_MODEL: ${{ inputs.openrouter-model }}
+        GITHUB_WORKSPACE: ${{ github.workspace }}
       run: python ${{ github.action_path }}/scripts/ai_review.py
