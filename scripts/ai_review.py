@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AI reviewer script for GitHub Actions using OpenRouter AI.
+"""AI reviewer script for GitHub Actions using Cursor Agent SDK.
 
 This is the main orchestrator that coordinates all components:
 - Configuration validation
@@ -11,7 +11,7 @@ This is the main orchestrator that coordinates all components:
 For detailed implementation, see the reviewer package modules:
 - config.py: Configuration and environment variables
 - github_client.py: GitHub API operations
-- openrouter_client.py: OpenRouter AI integration
+- cursor_client.py: Cursor Agent SDK integration
 - prompt_builder.py: Prompt construction
 - utils.py: Helper functions
 """
@@ -20,12 +20,11 @@ import sys
 
 from reviewer.config import Config
 from reviewer.github_client import GitHubClient, GitHubAPIError
-from reviewer.openrouter_client import OpenRouterClient, OpenRouterAPIError
 from reviewer.prompt_builder import PromptBuilder
 from reviewer.utils import (
     get_pr_number_from_ref,
     format_validation_errors,
-    create_fallback_comment,
+    create_paused_comment,
     print_usage_instructions
 )
 
@@ -53,8 +52,15 @@ def main():
 
     # Initialize clients
     github_client = GitHubClient(Config.GITHUB_REPOSITORY, Config.GITHUB_TOKEN)
-    openrouter_client = OpenRouterClient(
-        Config.OPENROUTER_API_KEY,
+
+    if Config.REVIEW_PAUSED:
+        _finish_paused(github_client, pr_number)
+        return
+
+    from reviewer.cursor_client import CursorClient, CursorAPIError
+
+    cursor_client = CursorClient(
+        Config.CURSOR_API_KEY,
         project_name=Config.GITHUB_REPOSITORY or "AI Code Review Bot",
         pr_number=pr_number
     )
@@ -80,65 +86,30 @@ def main():
                 print(f"💬 Reviewing chunk {idx + 1}/{len(prompt_chunks)} "
                       f"({len(chunk.files)} files: {', '.join(chunk.files[:3])}...)")
             else:
-                print("💬 Sending prompt to OpenRouter AI...")
+                print("💬 Sending prompt to Cursor...")
 
-            review = openrouter_client.generate_review(prompt)
+            review = cursor_client.generate_review(prompt)
             all_reviews.append({
                 'chunk_index': idx,
                 'files': chunk.files,
                 'review': review
             })
 
-        except OpenRouterAPIError as e:
-            print(f"❌ OpenRouter call failed for chunk {idx + 1}: {e}")
+        except CursorAPIError as e:
+            print(f"❌ Cursor call failed for chunk {idx + 1}: {e}")
 
-            # If first chunk fails, post fallback comment and exit
+            # Token/quota issues must not fail consumer CI.
             if idx == 0:
-                fallback_comment = create_fallback_comment(
-                    Config.REVIEW_LANGUAGE,
-                    str(e)
-                )
-                try:
-                    github_client.post_comment(
-                        pr_number,
-                        Config.COMMENT_HEADER + fallback_comment
-                    )
-                except Exception:
-                    pass
-                sys.exit(1)
-            else:
-                # For subsequent chunks, log error but continue
-                print(f"   ⚠️ Skipping chunk {idx + 1}, continuing with remaining chunks...")
-                continue
-
-        except Exception as e:
-            # Catch any unexpected errors with full traceback
-            import traceback
-            error_details = traceback.format_exc()
-            print(f"❌ Unexpected error in chunk {idx + 1}:")
-            print(error_details)
-
-            if idx == 0:
-                fallback_comment = create_fallback_comment(
-                    Config.REVIEW_LANGUAGE,
-                    f"Unexpected error: {str(e)}\n\nTraceback:\n{error_details}"
-                )
-                try:
-                    github_client.post_comment(
-                        pr_number,
-                        Config.COMMENT_HEADER + fallback_comment
-                    )
-                except Exception:
-                    pass
-                sys.exit(1)
-            else:
-                print(f"   ⚠️ Skipping chunk {idx + 1}, continuing with remaining chunks...")
-                continue
+                _finish_paused(github_client, pr_number)
+                return
+            print(f"   ⚠️ Skipping chunk {idx + 1}, continuing with remaining chunks...")
+            continue
 
     # Step 4: Merge reviews if multiple chunks
     if len(all_reviews) == 0:
-        print("❌ No reviews generated")
-        sys.exit(1)
+        print("⚠️ No reviews generated. Posting paused notice and exiting 0.")
+        _finish_paused(github_client, pr_number)
+        return
 
     if len(all_reviews) == 1:
         final_review = all_reviews[0]['review']
@@ -154,6 +125,20 @@ def main():
     except GitHubAPIError as e:
         print(f"❌ Failed to post comment: {e}")
         sys.exit(1)
+
+
+def _finish_paused(github_client: GitHubClient, pr_number: str) -> None:
+    """Post a paused notice and leave CI green."""
+    print("⏸️ AI Code Review is paused. Skipping Cursor API.")
+    try:
+        github_client.post_comment(
+            pr_number,
+            Config.COMMENT_HEADER + create_paused_comment(Config.REVIEW_LANGUAGE),
+        )
+        print("✅ Posted paused notice to PR.")
+    except Exception as e:
+        print(f"⚠️ Could not post paused comment: {e}")
+    print("Exiting successfully so CI stays green.")
 
 
 def _merge_reviews(reviews: list, language: str) -> str:

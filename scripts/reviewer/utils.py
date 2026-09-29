@@ -48,6 +48,19 @@ def format_validation_errors(errors: list[str]) -> str:
     return f"❌ Configuration validation failed:\n{error_list}"
 
 
+def create_paused_comment(language: str) -> str:
+    """Comment posted when AI review is temporarily disabled."""
+    if language == "english":
+        return (
+            "⏸️ **AI Code Review is temporarily paused.**\n\n"
+            "The review bot is not running. Please review each other's PRs to ensure quality."
+        )
+    return (
+        "⏸️ **AI Code Review đang tạm dừng.**\n\n"
+        "Bot review hiện không chạy. Mọi người hãy review chéo cho nhau để đảm bảo quality."
+    )
+
+
 def create_fallback_comment(language: str, error_message: str) -> str:
     """Create a fallback comment when review generation fails.
 
@@ -61,13 +74,13 @@ def create_fallback_comment(language: str, error_message: str) -> str:
     if language == "english":
         return (
             "⚠️ AI review could not be generated due to configuration or API error.\n\n"
-            "Please ensure OPENROUTER_API_KEY is set correctly.\n\n"
+            "Please ensure OPENROUTER_API_KEY is set correctly (value must be a Cursor API key).\n\n"
             f"Error details:\n```\n{error_message}\n```"
         )
     else:
         return (
             "⚠️ AI review không thể tạo được do lỗi cấu hình hoặc API.\n\n"
-            "Đảm bảo OPENROUTER_API_KEY đã được set đúng.\n\n"
+            "Đảm bảo OPENROUTER_API_KEY đã được set đúng (value phải là Cursor API key).\n\n"
             f"Chi tiết lỗi:\n```\n{error_message}\n```"
         )
 

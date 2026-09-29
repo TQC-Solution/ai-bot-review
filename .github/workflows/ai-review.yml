@@ -25,13 +25,13 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # Step 2: Chạy AI Code Reviewer action đã được tạo sẵn (pubstar-io/ai-review-bot)
-      - name: Run OpenRouter AI Code Reviewer
+      # Step 2: Chạy AI Code Reviewer action đã được tạo sẵn (TQC-Solution/ai-bot-review)
+      - name: Run Cursor AI Code Reviewer
         uses: TQC-Solution/ai-bot-review@main
         with:
-          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}  # OpenRouter API key (gán giá trị trong secrets của repository)
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}  # Tên secret giữ nguyên; value phải là Cursor API key
           github-token: ${{ secrets.GITHUB_TOKEN }}  # GitHub token (giá trị này sẽ được tự động cung cấp bởi GitHub Actions)
           stack: 'mobile-ios'
           review-language: 'vietnamese' # Ngôn ngữ cho comment review: 'vietnamese' hoặc 'english' (mặc định: vietnamese)
           rules-path: 'pubstar-ios'  # Đường dẫn đến thư mục chứa các file .md rules review
-          openrouter-model: 'google/gemini-3.1-flash-lite'  # OpenRouter model được sử dụng (default: google/gemini-3.1-flash-lite)
+          openrouter-model: 'google/gemini-3.1-flash-lite'  # Bị bỏ qua. Model fix cứng trong repo (scripts/reviewer/config.py)
