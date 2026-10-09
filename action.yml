@@ -1,6 +1,6 @@
 name: "AI Code Reviewer"
-description: "Automated code review using Cursor Agent SDK with Clean Architecture standards"
-author: "vincetran"
+description: "Automated code review using Claude and centralized coding rules"
+author: "TQC-Solution"
 
 branding:
   icon: "check-circle"
@@ -8,60 +8,43 @@ branding:
 
 inputs:
   openrouter-api-key:
-    description: "API key for Cursor review. Secret name stays OPENROUTER_API_KEY; value must be a Cursor API key"
+    description: "Claude Code OAuth token"
     required: true
   github-token:
-    description: "GitHub token for posting PR comments (use secrets.GITHUB_TOKEN)"
+    description: "GitHub token for reviewing and commenting on PRs"
     required: true
   stack:
-    description: "Stack công nghệ mà dự án đang sử dụng"
+    description: "Tên thư mục stack trong scripts/stacks/"
     required: true
   rules-path:
-    description: "Đường dẫn đến thư mục chứa các file .md rules review"
+    description: "Tên thư mục project rules trong scripts/rules/"
     required: true
   review-language:
-    description: 'Language for code review comments: "vietnamese" or "english"'
+    description: "Ngôn ngữ review: vietnamese hoặc english"
     required: false
     default: "vietnamese"
-  openrouter-model:
-    description: "Ignored. Model is hardcoded in this repo (scripts/reviewer/config.py). Kept so existing CI YAML does not break."
-    required: false
-    default: ""
 
 runs:
   using: "composite"
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Install Python dependencies
+    - name: Build review prompt
+      id: build-prompt
       shell: bash
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r ${{ github.action_path }}/scripts/requirements.txt
-
-    # CLI is unused while REVIEW_PAUSED=True; continue-on-error so
-    # install/quota issues never fail consumer CI.
-    - name: Install Cursor CLI
-      shell: bash
-      continue-on-error: true
-      run: |
-        curl https://cursor.com/install -fsS | bash
-        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-        echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
-
-    - name: Run Cursor AI Code Reviewer
-      shell: bash
-      continue-on-error: true
       env:
-        CURSOR_API_KEY: ${{ inputs.openrouter-api-key }}
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ACTION_PATH: ${{ github.action_path }}
         STACK: ${{ inputs.stack }}
         RULES_PATH: ${{ inputs.rules-path }}
-        GITHUB_REPOSITORY: ${{ github.repository }}
-        GITHUB_REF: ${{ github.ref }}
         REVIEW_LANGUAGE: ${{ inputs.review-language }}
-        GITHUB_WORKSPACE: ${{ github.workspace }}
-      run: python ${{ github.action_path }}/scripts/ai_review.py
+      run: bash "$ACTION_PATH/scripts/system-prompts/build-prompt.sh"
+
+    - name: Run Claude Code Review
+      uses: anthropics/claude-code-action@v1
+      with:
+        claude_code_oauth_token: ${{ inputs.openrouter-api-key }}
+        github_token: ${{ inputs.github-token }}
+        track_progress: true
+        prompt: ${{ steps.build-prompt.outputs.prompt }}
+        claude_args: |
+          --max-turns 25
+          --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh api:*)"
+          --disallowedTools Edit,Write
