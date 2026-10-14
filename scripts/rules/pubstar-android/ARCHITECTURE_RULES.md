@@ -1,264 +1,89 @@
-# PubStar Android SDK - Architecture Rules & Context for AI Review
+# PubStar Android SDK — Kiến trúc & luật review
 
-Tài liệu này mô tả **cấu trúc module**, **quy tắc kiến trúc**, và **ràng buộc khi refactor** cho dự án PubStar Android SDK (Kotlin/Java).
+Tài liệu mô tả cấu trúc module, luật review và vùng thay đổi nhạy cảm của PubStar Android SDK (Kotlin/Java). Căn cứ: 📐 Coding Standards — Mobile SDK (PubStar) v1.0.
+Nhãn mức độ: [chặn merge] = 🔴 · [cảnh báo] = ⚠️ · [nit] = 💡. Quy tắc không có nhãn là mô tả, không dùng để báo lỗi.
+PR chạm Public API hoặc symbol CRITICAL (§4.1): luôn ghi rõ trong comment tổng kết, kể cả khi không có vi phạm, để người hiểu mediation review lại.
 
-Mục tiêu:
-- Giúp AI/Developer hiểu rõ **đâu là Public API**, **đâu là core internal**, **đâu là adapter/integration**.
-- Giảm rủi ro **breaking change**, **cross-dependency**, và **rò rỉ implementation** ra bề mặt public.
-- Hỗ trợ mở rộng thêm network adapter mới theo chuẩn sẵn có.
+## 1. Tổng quan (multi-module Gradle)
+- `:Pubstar`: core SDK (AAR) — domain logic, mediation orchestration, model, service, bridge nội bộ. Publish `io.pubstar.mobile:ads:<version>` (groupId có thể prefix `qa-`/`stage-`).
+- `:PubStar*Adapter`: adapter mạng quảng cáo (AdMob, AppLovin, Facebook, Pangle...). Publish namespace riêng (`io.pubstar.mediation.adapter.*`...). Adapter → Core qua `implementation(project(":Pubstar"))` hoặc Maven.
+- `:lib-ads`: thư viện phụ trợ (asset/layout/helper), tuân boundary như core internal.
+- `:app`: sample/test app — không publish, không chứa logic SDK.
+- Publish AAR lên Maven Central/Snapshots; version và groupId điều khiển bởi `ENV_TYPE`, `PUBLISH_TO_MAVEN_CENTRAL`, `VERSION`, `local.properties`.
+- Phân tầng: Public API (ổn định signature) → Core Domain (orchestration, waterfall, cache, timeout, frequency, tracking) → Adapter (SDK bên thứ ba, callback về Core qua contract).
 
-> Ngữ cảnh build/publish: dự án publish AAR lên Maven (Central và Snapshots). Version & groupId được điều khiển bởi biến môi trường (`ENV_TYPE`, `PUBLISH_TO_MAVEN_CENTRAL`, `VERSION`) và `local.properties`.
-
----
-
-## 1. Tổng quan cấu trúc (Multi-module Gradle)
-
-Các module chính (theo `settings.gradle.kts`):
-- **`:Pubstar`**: Core SDK (AAR) – domain logic, mediation orchestration, models, services, internal bridge.
-- **`:PubStar*Adapter`**: Adapter mạng quảng cáo bên thứ 3 (AdMob, AppLovin, Facebook, Pangle, …).
-- **`:lib-ads`**: Library phụ trợ (assets/layout/helpers) — tuân boundary như core internal nếu được dùng nội bộ.
-- **`:app`**: Sample/Test app — **không** publish, **không** chứa logic SDK.
-
-### 1.1. Publish & dependency (nguồn chuẩn cho ranh giới module)
-
-- **Core**: `io.pubstar.mobile:ads:<version>` (groupId có thể prefix `qa-` / `stage-`).
-- **Adapter**: ví dụ `io.pubstar.mediation.adapter.admob:ads`, `io.pubstar.facebook.adapter:ads`, …
-- **Adapter → Core**: `implementation(project(":Pubstar"))` khi `pubstarFromProject=true`, hoặc Maven `implementation("<pubstarGroupId>:ads:<version>")`.
-
-**Ràng buộc phụ thuộc (áp dụng mọi module):**
-- Adapter → Core: **OK** | Core → Adapter publish: **KHÔNG** | Adapter A → Adapter B: **KHÔNG**
-
----
-
-## 2. Phân tầng kiến trúc (Layered Architecture)
-
-1. **Public API** — app / mediation adapter publish gọi trực tiếp; ổn định signature.
-2. **Core Domain** — orchestration, waterfall, cache, timeout, frequency, tracking.
-3. **Infrastructure / Adapters** — SDK bên thứ 3; callback về Core qua contract.
-
-**Nguyên tắc phụ thuộc:** Public API chỉ đi xuống Core (không chứa logic nghiệp vụ nặng). Core không hard-code từng adapter publish. Adapter giao tiếp Core qua **interface/contract**.
-
----
-
-## 3. Ranh giới truy cập & Public API
-
-### 3.1. Public API (BẮT BUỘC ổn định)
-
-Bao gồm: class/interface app import trực tiếp; listener/callback; config khi init/load/show.
-
-- Không đổi package/class/signature public trừ khi có breaking change có chủ đích.
-- Không leak type internal trong signature public.
-- Thêm API mới: ưu tiên overload / builder; deprecate thay vì sửa cũ (binary compatibility).
-
-### 3.2. Core internal
-
-- Kotlin: mặc định `internal`. Java: ưu tiên package-private.
-- Không `public` hoá class internal để gọi chéo — dùng interface/entrypoint ở Core.
-
-### 3.3. `PubStarAdController` — chỉ cho bên ngoài `:Pubstar`
-
-Facade: `PubStarAdManager.getAdController()` / `PubStarAd.getAdController()`.
-
-| Được gọi | Không gọi (trong `:Pubstar`) |
-|----------|------------------------------|
-| Host app | `io.pubstar.mobile.core.*` (trừ `PubStarAd` implement facade) |
-| Module publish (`PubStarAdmobAdapter`, `PubStarApplovinAdapter`, …) | `adapter.*`, `base.*`, `utils`, `tasks`, `mediation.internal.*` (không thêm gọi controller) |
-
-**Cấm từ nội bộ:** `load`, `show`, `loadAndShow`, `isReady` trên controller (kể cả qua `PubStarAdManager`).
-
-**Luồng nội bộ bắt buộc:** xem sơ đồ **§12.1** (`loadAd` → `GetAdModelTask` → `AdNet` → `BaseAd` → partner). Không quay ngược `getAdController()`.
-
-**Cấm cầu nối không chính thức:** `*Helper`/`*Bridge`/extension wrap controller; cast sang `PubStarAdControllerHelper`; adapter nhúng trong core gọi `loadAndShow` thay vì `AdNet` → `BaseAd`. Mediation native: mở rộng `NativeAdRequest` / `PubStarNativeMediationBridge` SPI — không thêm wrapper controller.
-
-**Ngoại lệ duy nhất (technical debt):** `PubStarNativeMediationBridge.loadNative` gọi `getAdController().loadAndShow` — không nhân bản; refactor sang entry `loadAd` nội bộ.
-
-**PR grep** trong `Pubstar/src` (trừ `PubStarAd.kt` + file ngoại lệ): `getAdController().load|show|loadAndShow`, `PubStarAdManager.getAdController()`.
-
----
-
-## 4. Quy tắc module boundary
-
-### 4.1. Core (`:Pubstar`)
-
-Orchestration + chuẩn hoá callback. **Không import SDK quảng cáo bên thứ 3** (trừ case đã duyệt). Logic từng network nằm adapter tương ứng.
-
-### 4.2. Adapters (`:PubStar*Adapter`)
-
-Bao SDK network; map error → Core. Tuân **§1.1** dependency. Waterfall/passback/refresh: **§12** (Core) — adapter không tự implement policy. `compileOnly` third-party khi phù hợp publish.
-
-### 4.3. Sample (`:app`)
-
-Chỉ demo/test; không đưa logic SDK vào app rồi copy ngược.
-
----
-
-## 5. Package / naming
-
-- Core: `io.pubstar.mobile.*` | Adapter publish: namespace riêng (`io.pubstar.mediation.adapter.*`, …).
-- Tên class theo format/network; listener domain đặt ở Core.
-
----
-
-## 6. Threading, lifecycle, memory
-
-- Không giữ `Activity`/`View` lâu hơn lifecycle; ưu tiên `applicationContext`.
-- Callback UI về main thread; không block main bằng network/disk.
-- Cancel `Handler`/coroutine/timer timeout khi destroy.
-- Load/show: state machine rõ, tránh double-callback.
-
----
-
-## 7. Error & logging
-
-- Public API: không throw trừ misuse có message rõ.
-- Adapter map lỗi network → error code Core.
-- Log theo `isShowLog`/`isDebug`; **không log** PII/credentials/token/GAID.
-
----
-
-## 8. Config, môi trường, git hygiene
-
-- URL/endpoint: `BuildConfig` / `local.properties` — không hardcode production.
-- Không credential trong source.
-- Không commit `*/build/`, generated `BuildConfig.java`, `R.jar`, `R.txt`, …
-
----
-
-## 9. Resources & UI
-
-- Resource id ổn định (Proguard/shrinker). UI chỉ render — không đưa logic mediation vào layout class.
-
----
-
-## 10. Proguard / R8
-
-- Reflection / SDK third-party: keep rule trong `consumer-rules.pro` (ưu tiên) hoặc `proguard-rules.pro` đúng module. Không xoá rule đang cần.
-
----
-
-## 11. Refactor — checklist tham chiếu
-
-| Chủ đề | Chi tiết |
-|--------|----------|
-| Public API & binary compat | §3.1 |
-| Visibility / internal | §3.2 |
-| Không gọi controller nội bộ | §3.3 |
-| Module & dependency | §1.1, §4 |
-| Config / secrets / build output | §8 |
-| Partner & CRITICAL code | §12, §13 |
-| Review PR | §14 |
-
----
-
-## 12. Luồng vận hành Partner (Protected Operational Flows)
-
-**Xương sống mediation** — đọc kỹ trước khi sửa. Chi tiết symbol CRITICAL: **§13.1**.
-
-### 12.1. Sơ đồ luồng tổng quan
-
-```mermaid
-flowchart TD
-    Init[GetInitAdTask] --> AdapterInit[AdapterController.initializeWithServerConfig]
-    Load[PubStarAd.loadAd / loadAndShowAd] --> GetModel[GetAdModelTask]
-    GetModel --> Cache[PubStarAdConfigCache]
-    GetModel --> FastPath[PubStarFastPathLoadContext]
-    GetModel --> Merge[mergeAdNetIntoModelAndLoad]
-    Merge --> AdNet[AdNet.loadAd]
-    AdNet --> Partner[BaseAd / Adapter partner]
-    Partner --> Timeout[callCountDownTask / maxLoadTime]
-    Partner --> Freq[checkIndexShow / SkipAdUnitProvider]
-    Partner --> Refresh[reloadAd / RefreshTimeProvider]
-    Partner -->|onError + rejectList| Passback[loadAndShowAd passback]
-    Passback --> GetModel
-    Partner -->|Native asRawData| MedBridge[PubStarNativeMediationBridge]
+## 2. Luồng vận hành partner (xương sống mediation)
 ```
+GetInitAdTask → AdapterController.initializeWithServerConfig
+PubStarAd.loadAd / loadAndShowAd → GetAdModelTask → (PubStarAdConfigCache | PubStarFastPathLoadContext)
+  → mergeAdNetIntoModelAndLoad → AdNet.loadAd → BaseAd / adapter partner
+     → timeout (callCountDownTask / maxLoadTime) · frequency (checkIndexShow / SkipAdUnitProvider)
+     → refresh (reloadAd / RefreshTimeProvider)
+     → onError + rejectList → loadAndShowAd passback → GetAdModelTask
+     → Native asRawData → PubStarNativeMediationBridge
+```
+- Init (`GetInitAdTask`): cache SP `TAG_INIT_CACHE`, giữ fallback khi mạng lỗi; `InitializeAdapterService` không load/show khi `!isSuccess`; `initializeWithServerConfig` chạy sau init thành công, không hardcode ORT URL/publisher.
+- Waterfall (`GetAdModelTask`): timeout 20s; `createURLGetAd` + `skipConfigs` (`rejectList` ↔ passback, đồng bộ server); `onGetAdModelSuccess` giữ `configId`/`configTimeUpdateKey`/`order` và `activeAdLoadSessionByUnit`; `PubStarAdConfigCache` key `adUnitId | skipConfigs`; `PubStarFastPathLoadContext` không deliver sau `abortFastPath`/session hết hạn.
+- `rejectList` = `configId` đã fail → passback; `callReject` = terminal `NO_AD` (clear reject). `mergeAdNetIntoModelAndLoad` không reorder `adNets`.
+- Ngữ nghĩa `AdNet`: `timeDelay == -1` → tắt refresh · `timeOut`/`maxShow <= 0` → bỏ cap · `maxLoadTime` → load timeout · `configId` → identity waterfall · `isChangeRefresh` → `CHANGE_FREQUENCY`.
+- Refresh: `reloadAd` + `TimeOutProvider` (theo `configId`); `reloadAd(View)` + `RefreshTimeProvider` + lifecycle; native raw: `deliverRawNativeDataIfRequested` → `reloadAd` + `registerRawMediationRefreshScheduler`.
+- Timeout/frequency: `callCountDownTask` cancel trong `destroy`; `SkipAdUnitProvider` vs `SkipConfigProvider`; `callWhenError` với raw `asRawData` không thêm `configId` vào reject.
+- Mediation bridge: `PubStarNativeMediationBridge` `@RestrictTo(LIBRARY_GROUP)`; `loadAdNetForMerge` giữ `adLoaderListener` khi `asRawData`; adapter publish chỉ map asset/tracker.
+- Session (`PubStarAd`): `listKey` synchronized; `activeAdLoadSessionByUnit` bỏ response cũ; `scopeMain`/`scopeBackground`.
 
-### 12.2. Init — `GetInitAdTask`
+## 3. Luật review
 
-| Thành phần | Ràng buộc |
-|------------|-----------|
-| `GetInitAdTask` | Cache SP `TAG_INIT_CACHE`; giữ fallback khi network fail |
-| `InitializeAdapterService` | Không load/show khi `!isSuccess` |
-| `AdapterController.initializeWithServerConfig` | Sau init success; không hardcode ORT URL/publisher |
+### 3.1. Public API & visibility
+- [chặn merge] Đổi/xoá package, class, signature public (class/listener/config app dùng trực tiếp) mà PR không ghi là breaking change có chủ đích.
+- [cảnh báo] Type internal lộ trong signature public; `public` hoá class internal để gọi chéo (Kotlin mặc định `internal`, Java package-private).
+- [cảnh báo] API mới sửa signature cũ thay vì overload/builder + deprecate; Public API chứa logic nghiệp vụ nặng.
 
-### 12.3. Per ad unit / waterfall — `GetAdModelTask`
+### 3.2. Module boundary
+- [chặn merge] Core phụ thuộc adapter publish (`project(":PubStar*Adapter")`, import `io.pubstar.mediation.adapter.*`); adapter A phụ thuộc adapter B.
+- [chặn merge] Core import SDK quảng cáo bên thứ ba (trừ case đã duyệt); logic riêng một network đặt trong Core.
+- [cảnh báo] Adapter tự hiện thực waterfall/passback/refresh thay vì để Core quyết định.
+- [cảnh báo] Logic SDK đặt trong `:app`.
 
-| Thành phần | Ràng buộc |
-|------------|-----------|
-| `GetAdModelTask` | Timeout 20s trừ khi product đổi |
-| `createURLGetAd` + `skipConfigs` | `rejectList` ↔ passback — đồng bộ server |
-| `onGetAdModelSuccess` | `configId` / `configTimeUpdateKey` / `order`; giữ `activeAdLoadSessionByUnit` |
-| `PubStarAdConfigCache` | Key `adUnitId \| skipConfigs` |
-| `PubStarFastPathLoadContext` | Không deliver sau `abortFastPath` / session hết hạn |
+### 3.3. Không gọi controller từ nội bộ `:Pubstar`
+- [chặn merge] Trong `Pubstar/src` (trừ `PubStarAd.kt` và ngoại lệ ở §5) gọi `getAdController().load|show|loadAndShow|isReady` hoặc `PubStarAdManager.getAdController()`.
+- [chặn merge] Tạo `*Helper`/`*Bridge`/extension bọc controller; cast sang `PubStarAdControllerHelper`; adapter nhúng trong core gọi `loadAndShow` thay vì `AdNet` → `BaseAd`.
+- [cảnh báo] Mediation native mới không mở rộng qua `NativeAdRequest`/SPI `PubStarNativeMediationBridge` mà thêm wrapper controller.
 
-**Waterfall:** `rejectList` = `configId` đã fail → `loadAndShowAd` passback; `callReject` = terminal `NO_AD` (clear reject). `mergeAdNetIntoModelAndLoad`: không reorder `adNets` tùy tiện.
+### 3.4. Vùng partner flow & CRITICAL (§4)
+- [chặn merge] Đổi ngữ nghĩa magic value của `AdNet` (`timeDelay == -1`, `timeOut`/`maxShow <= 0`, `maxLoadTime`, `configId`, `isChangeRefresh`).
+- [chặn merge] Gộp `loadAd` + `onGetAdModelSuccess` thành một hàm; reorder `adNets`; xoá `synchronized`/`sessionId`/`WeakReference` của refresh scheduler mà không có thay thế.
+- [chặn merge] Lỗi mới không chọn rõ passback (`rejectList`) hay terminal (`callReject`/`NO_AD`).
+- [cảnh báo] Đổi URL `GetAdModelTask` hoặc timeout 20s mà PR không ghi đã phối hợp backend/product.
+- [cảnh báo] PR sửa symbol CRITICAL mà mô tả PR không có kế hoạch test §4.3 — dạng câu hỏi.
+- [cảnh báo] PR sửa symbol HIGH (§4.2) mà không mô tả test hành vi — dạng câu hỏi.
 
-**Semantique `AdNet`:** `timeDelay == -1` → tắt refresh | `timeOut`/`maxShow <= 0` → bỏ cap | `maxLoadTime` → load timeout | `configId` → identity waterfall | `isChangeRefresh` → `CHANGE_FREQUENCY`.
+### 3.5. Threading, lifecycle, memory
+- [chặn merge] Giữ `Activity`/`View` quá lifecycle (field static, singleton, callback dài hạn); network/disk trên main thread.
+- [chặn merge] `Handler`/coroutine/timer timeout mới không được cancel khi `destroy`.
+- [cảnh báo] Callback UI không về main thread; state machine load/show có thể double-callback.
 
-### 12.4. Refresh
+### 3.6. Lỗi, log, cấu hình, build
+- [chặn merge] Log PII/credential/token/GAID; credential trong source.
+- [cảnh báo] Public API throw khi không phải dùng sai rõ ràng; adapter không map lỗi network về error code Core.
+- [cảnh báo] Log không theo `isShowLog`/`isDebug`.
+- [cảnh báo] Hardcode URL production thay vì `BuildConfig`/`local.properties`.
+- [cảnh báo] Commit `*/build/`, `BuildConfig.java`, `R.jar`, `R.txt`.
+- [cảnh báo] Xoá keep rule đang cần; rule mới không đặt trong `consumer-rules.pro` (ưu tiên) hoặc `proguard-rules.pro` đúng module; đổi resource id đang dùng.
+- [cảnh báo] Logic mediation trong class layout/view.
+- [nit] Dependency bên thứ ba dùng `implementation` khi `compileOnly` phù hợp cho publish.
 
-`reloadAd` + `TimeOutProvider` (theo `configId`); `reloadAd(View)` + `RefreshTimeProvider` + lifecycle. Native raw: giữ `deliverRawNativeDataIfRequested` → `reloadAd` + `registerRawMediationRefreshScheduler`.
+## 4. Change control
+### 4.1. CRITICAL symbols
+`PubStarAd.loadAd` / `loadAndShowAd` / `onGetAdModelSuccess` / `mergeAdNetIntoModelAndLoad` / `loadAdNetForMerge` / `callReject` · `GetAdModelTask` / `GetInitAdTask` · `BaseAdTimeOutAndMaxShow.reloadAd` / `deliverRawNativeDataIfRequested` / `callWhenError` · `PubStarNativeMediationBridge.loadNative` · `PubStarAdConfigCache` / `PubStarFastPathLoadContext` · `TimeOutProvider` / `RefreshTimeProvider` / `Skip*Provider` · `AdNet.loadAd` / `handleLoadAd`.
+### 4.2. HIGH
+`PubStarAdController.show`, `tryLoadSingleFromCachedAd`, field timing của `AdNet`, `AdapterController`, `InitializeAdapterService`, `Utils.convertToSkipConfigs`.
+### 4.3. Test tối thiểu khi sửa CRITICAL
+Init cold (có/không cache) · load 1 partner OK · fail A → passback B (`skipConfigs` trên URL) · refresh `timeDelay > 0` / `timeDelay = -1` không refresh · vượt cap → skip/`REJECT_BY_FREQUENCY` · AdMob/MAX native: load → display → refresh → terminal re-arm · `GetAdModelTask` mất mạng: fast path hoặc `NO_AD`.
 
-### 12.5. Timeout & frequency
+## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
+- `PubStarNativeMediationBridge.loadNative` gọi `getAdController().loadAndShow`: ngoại lệ duy nhất đã biết. Chỉ báo khi code MỚI nhân bản pattern này.
+- `PubStarAd.kt` implement facade nên được gọi controller.
 
-`callCountDownTask` cancel trong `destroy`; `SkipAdUnitProvider` vs `SkipConfigProvider`; `callWhenError`: **raw `asRawData`** không thêm `configId` vào reject.
-
-### 12.6. Mediation bridge (AdMob / MAX native)
-
-`PubStarNativeMediationBridge` — `@RestrictTo(LIBRARY_GROUP)`. `loadAdNetForMerge`: giữ `adLoaderListener` khi `asRawData`. Adapter publish: chỉ map asset/tracker — policy **§12.3–12.5**.
-
-### 12.7. Session (`PubStarAd`)
-
-`listKey` synchronized; `activeAdLoadSessionByUnit` bỏ response cũ; `scopeMain` / `scopeBackground`.
-
----
-
-## 13. Change Control (side effect cao)
-
-**CRITICAL:** mô tả PR + test **§13.2** + review người hiểu mediation.
-
-### 13.1. CRITICAL symbols
-
-| Symbol | Rủi ro chính |
-|--------|----------------|
-| `PubStarAd.loadAd` / `loadAndShowAd` / `onGetAdModelSuccess` / `mergeAdNetIntoModelAndLoad` / `loadAdNetForMerge` / `callReject` | Session, waterfall, passback |
-| `GetAdModelTask` / `GetInitAdTask` | Sai partner / không init |
-| `BaseAdTimeOutAndMaxShow.reloadAd` / `deliverRawNativeDataIfRequested` / `callWhenError` | Refresh storm / mediation break |
-| `PubStarNativeMediationBridge.loadNative` | Double load / refresh |
-| `PubStarAdConfigCache` / `PubStarFastPathLoadContext` | Stale config / double callback |
-| `TimeOutProvider` / `RefreshTimeProvider` / `Skip*Provider` | Timer leak / frequency |
-| `AdNet.loadAd` / `handleLoadAd` | Sai network SDK |
-
-### 13.2. HIGH (sửa được, phải test hành vi)
-
-`PubStarAdController.show`, `tryLoadSingleFromCachedAd`, `AdNet` timing fields, `AdapterController`, `InitializeAdapterService`, `Utils.convertToSkipConfigs`.
-
-### 13.3. Quy tắc bổ sung khi sửa CRITICAL
-
-- Tuân **§3.3** (controller) và **§12** (semantique magic values).
-- Không gộp `loadAd` + `onGetAdModelSuccess` thành một hàm.
-- Không xoá `synchronized` / `sessionId` / `WeakReference` refresh scheduler không có thay thế.
-- Lỗi mới: chọn **passback** (`rejectList`) hay **terminal** (`callReject` / `NO_AD`).
-- `GetAdModelTask` URL: phối hợp backend.
-
-### 13.4. Test tối thiểu (partner flows)
-
-- [ ] Init cold (có/không cache)
-- [ ] Load 1 partner OK
-- [ ] Fail A → passback B (`skipConfigs` trên URL)
-- [ ] Refresh (`timeDelay > 0`) / `timeDelay = -1` không refresh
-- [ ] Frequency vượt cap → skip / `REJECT_BY_FREQUENCY`
-- [ ] AdMob/MAX native: load → display → refresh → terminal re-arm
-- [ ] `GetAdModelTask` mất mạng: fast path hoặc `NO_AD`
-
----
-
-## 14. Checklist PR / Review
-
-- [ ] Public API / breaking change? (§3.1)
-- [ ] Module boundary & dependency? (§1.1, §4)
-- [ ] Gọi controller / bridge nội bộ? (§3.3 — grep)
-- [ ] Đụng partner flows / CRITICAL? (§12, §13 — nếu có: §13.4)
-- [ ] Thread/lifecycle leak? (§6)
-- [ ] Dependency transitive / Proguard? (§10)
-- [ ] Build output / secrets / PII log? (§8, §7)
+## 6. Nguyên tắc khi AI sửa/sinh code (không dùng để báo lỗi review)
+- Package core `io.pubstar.mobile.*`; adapter namespace riêng; listener domain đặt ở Core.
+- Refactor `loadNative` sang entry `loadAd` nội bộ khi có yêu cầu. Ưu tiên thay đổi nhỏ, giữ binary compatibility.

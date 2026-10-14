@@ -1,30 +1,19 @@
-### Chỉ thị bổ sung dành cho AI (TypeScript - chế độ `strict: true`)
-Bạn là một Chuyên gia TypeScript khắt khe. Ngoài các tiêu chí của Express.js, hãy kiểm tra thêm về type safety:
+# Quy tắc TypeScript — dự án TS chạy `strict: true`
+Nguồn: Coding Standards CORE §3. CHỈ áp dụng cho dòng `+` trong file `.ts`/`.tsx`.
+(File này có bản giống hệt trong các stack TypeScript khác; sửa một chỗ thì đồng bộ các chỗ còn lại.)
 
-1. Cấm dùng `any` (kể cả implicit any). Nếu chưa rõ kiểu, yêu cầu dùng `unknown` rồi Type Narrowing trước khi thao tác.
-2. Mọi biến có khả năng `null`/`undefined` phải được narrow (kiểm tra) trước khi truy cập thuộc tính.
-3. Cấm dùng non-null assertion (`!`) vô căn cứ và type assertion (`as`) để "ép" qua lỗi compiler. Ưu tiên type guard.
-4. `switch-case` trên Union Type phải có Exhaustiveness Checking (dùng nhánh `default` với biến kiểu `never`).
-5. Định nghĩa kiểu rõ ràng cho request/response: `Request<Params, ResBody, ReqBody, Query>`, DTO cho body, kiểu trả về của service. Không để controller suy luận ngầm.
-6. Dữ liệu từ nguồn ngoài (DB, API thứ 3, `req.body`) là `unknown` về bản chất — phải validate (zod) và parse thành kiểu cụ thể, không tin tưởng kiểu tĩnh.
-7. Ưu tiên `interface`/`type` tường minh cho domain model; dùng `readonly` cho dữ liệu bất biến; tránh `enum` lỏng lẻo nếu union string phù hợp hơn.
+## Kiểu dữ liệu
+- [cảnh báo] Thêm `any` mới (`: any`, `as any`, `any[]`, `Promise<any>`) mà không có comment `// eslint-disable-next-line @typescript-eslint/no-explicit-any -- <lý do>`. Gợi ý interface cụ thể hoặc `unknown` + type guard.
+- [cảnh báo] Ép kiểu hai lần `as unknown as T` / `as any as T`.
+- [cảnh báo] Thêm `@ts-ignore` / `@ts-nocheck`, `eslint-disable` cho cả file, hoặc disable từng dòng không ghi `-- <lý do>`.
+- [cảnh báo] Diff nới `tsconfig` (tắt `strict`, `noImplicitAny`, `strictNullChecks`...).
+- [cảnh báo] Non-null assertion `!` trên giá trị mà CHÍNH diff cho thấy có thể null/undefined (kết quả `find(...)`, `findOne(...)`, `Map.get(...)`, tham số optional `?:`). KHÔNG báo khi không nhìn thấy nguồn gốc của giá trị.
+- [cảnh báo] Truy cập thuộc tính trên giá trị mà CHÍNH diff cho thấy có thể null/undefined (ví dụ `const user = await repo.findOne(...)` rồi dùng `user.id` ngay). KHÔNG suy đoán khi không thấy khai báo/kiểu.
+- [nit] `switch` trên union/enum mà diff hiện đầy đủ cả kiểu lẫn các nhánh, nhưng thiếu nhánh và không có kiểm tra `never` ở `default`.
+- [nit] Dùng `||` để đặt mặc định cho giá trị có thể hợp lệ là `0`/`""`/`false` (nên dùng `??`).
+- [nit] Thêm `enum` mới thay vì union string literal, trừ enum dự án đã chốt (ví dụ `ErrorCode`).
 
-#### Bad Code:
-```ts
-function getUser(req: any, res: any) {
-  const id = req.params.id;       // any → mất type safety
-  const user = db.find(id)!;      // non-null assertion vô căn cứ
-  res.json(user);
-}
-```
-#### Good Code:
-```ts
-async function getUser(req: Request<{ id: string }>, res: Response): Promise<void> {
-  const user = await userService.getById(req.params.id);
-  if (!user) {
-    res.status(404).json({ error: 'User not found' });
-    return;
-  }
-  res.status(200).json({ data: user });
-}
-```
+## Import
+- [cảnh báo] Import tương đối dài (`../../../`) trong khi dự án có path alias tương ứng; dùng alias không khai báo trong `tsconfig.json`.
+- [nit] Import chỉ dùng làm kiểu nhưng không dùng `import type`.
+- [nit] File `.js` mới trong thư mục mã nguồn của dự án TypeScript (ngoại lệ: migration, config tool).

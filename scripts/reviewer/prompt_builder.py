@@ -113,49 +113,46 @@ class PromptBuilder:
         return prompts
     
     def _load_coding_stack(self) -> str:
-        """Load coding stack from files in the stacks/ directory.
+        """Load coding stack files, same order as build-prompt.sh.
+
+        Order:
+            1. scripts/stacks/core/*.md (CORE, every project)
+            2. top-level *.md of each ancestor of STACK (e.g. stacks/expressjs/*.md
+               when STACK=expressjs/typescript)
+            3. top-level *.md of scripts/stacks/<STACK>/
 
         Returns:
             Combined coding stack text from files
         """
-        stacks_dir = Config.get_stacks_path()
+        stacks_dir = Path(Config.get_stacks_path())
+        stacks_root = Path(self.script_dir) / "stacks"
+        stack_parts = Path(Config.STACK or "").parts
 
-        try:
-            # Get all markdown files in the rule directory
-            md_files = sorted([
-                f for f in os.listdir(stacks_dir)
-                if f.endswith('.md')
-            ])
+        candidate_dirs = [stacks_root / "core"]
+        for i in range(1, len(stack_parts)):
+            candidate_dirs.append(stacks_root.joinpath(*stack_parts[:i]))
+        candidate_dirs.append(stacks_dir)
 
-            if not md_files:
-                print(f"⚠️ Warning: No rule files found in {stacks_dir}")
-                return self._get_fallback_stacks()
-
-            # Load and combine all rule files
-            all_stacks = []
-            for stack_file in md_files:
-                stack_path = os.path.join(stacks_dir, stack_file)
+        all_stacks = []
+        for directory in candidate_dirs:
+            if not directory.is_dir():
+                continue
+            for md_file in sorted(directory.glob("*.md")):
                 try:
-                    with open(stack_path, "r", encoding="utf-8") as f:
-                        md_content = f.read()
-                        all_stacks.append(md_content)
-                    print(f"   ✅ Loaded rule: {stack_file}")
+                    content = md_file.read_text(encoding="utf-8")
+                    rel = md_file.relative_to(Path(self.script_dir).parent)
+                    all_stacks.append(f"Source: {rel}\n\n{content}")
+                    print(f"   ✅ Loaded stack: {rel}")
                 except Exception as e:
-                    print(f"⚠️ Warning: Could not load rule file {stack_file}: {e}")
+                    print(f"⚠️ Warning: Could not load stack file {md_file}: {e}")
 
-            if not all_stacks:
-                print(f"⚠️ Warning: No rules could be loaded")
-                return self._get_fallback_stacks()
-
-            # Combine all rules with separators
-            combined_stacks = "\n\n===========================\n\n".join(all_stacks)
-            print(f"   ✅ Successfully loaded {len(all_stacks)} rule file(s)")
-            return combined_stacks
-
-        except Exception as e:
-            print(f"⚠️ Warning: Could not access rules directory {stacks_dir}: {e}")
+        if not all_stacks:
+            print(f"⚠️ Warning: No stack files found for {stacks_dir}")
             return self._get_fallback_stacks()
-        
+
+        print(f"   ✅ Successfully loaded {len(all_stacks)} stack file(s)")
+        return "\n\n---\n\n".join(all_stacks)
+
     def _load_coding_rules(self) -> str:
         """Load coding rules from all rule files in the rules/ directory.
 
@@ -166,10 +163,10 @@ class PromptBuilder:
 
         try:
             # Get all markdown files in the rule directory
-            rule_files = sorted([
-                f for f in os.listdir(rules_dir)
-                if f.endswith('.md')
-            ])
+            # Recursive, same as build-prompt.sh
+            rule_files = sorted(
+                str(p.relative_to(rules_dir)) for p in Path(rules_dir).rglob('*.md')
+            )
 
             if not rule_files:
                 print(f"⚠️ Warning: No rule files found in {rules_dir}")

@@ -1,55 +1,24 @@
-### 1. Chỉ thị dành cho AI (Next.js - JavaScript)
-Bạn là một Senior Next.js Engineer (thành thạo cả App Router và Pages Router). Hãy review code changes dựa trên các nguyên tắc của Next.js, hiệu năng render, bảo mật và SEO. Lưu ý: mọi nguyên tắc React (Rules of Hooks, key, immutable state, cleanup effect, tránh re-render thừa) đều áp dụng. Ngoài ra tập trung vào các tiêu chí riêng của Next.js:
+# Quy tắc Next.js — bổ sung cho `nextjs/react.md`
+Nguồn: Coding Standards — Frontend React/Next.js v1.0 §5, §8. Áp dụng cho App Router; với Pages Router, chỉ áp dụng các mục không nói về Server/Client Component.
 
-**Server vs Client Components (App Router):**
-1. Chỉ thêm `'use client'` khi component THỰC SỰ cần (state, effect, event handler, browser API). Cấm đánh dấu client một cách không cần thiết làm tăng bundle.
-2. Cấm dùng hook client (`useState`, `useEffect`...) hoặc browser API (`window`, `localStorage`) trong Server Component.
-3. Cấm import/để lộ code chỉ chạy ở server (secret, truy cập DB, biến môi trường nhạy cảm) vào Client Component.
+## Server vs Client Component (FE §5)
+- [chặn merge] Client Component (`"use client"`) đọc biến môi trường không có tiền tố `NEXT_PUBLIC_`, hoặc import module server-only (DB client, secret, `next/headers`, file đọc `process.env` bí mật).
+- [chặn merge] Secret đặt trong biến `NEXT_PUBLIC_*` (sẽ bị đóng gói ra trình duyệt).
+- [cảnh báo] Thêm `"use client"` cho page/layout trong khi chỉ một phần nhỏ cần tương tác — nên đẩy xuống component lá. Không báo khi file dùng hook/state/event handler/browser API.
+- [cảnh báo] Dùng `window`/`document`/`localStorage` trong Server Component hoặc ngoài `useEffect` của Client Component (lỗi khi render phía server).
+- [cảnh báo] Import Server Component vào Client Component (phải truyền qua `children`/props).
+- [cảnh báo] Fetch dữ liệu ở client bằng `useEffect` cho dữ liệu có thể lấy ở Server Component, khi trang đó là trang public cần SEO — dạng câu hỏi.
 
-**Data Fetching & Caching:**
-4. Ưu tiên fetch dữ liệu ở Server Component / `getServerSideProps` / `getStaticProps` thay vì `useEffect` phía client khi có thể.
-5. Kiểm tra chiến lược caching/revalidate hợp lý (`fetch(..., { next: { revalidate } })`, `cache`), tránh fetch lặp không cần thiết.
-6. Server Actions / Route Handlers phải validate input và kiểm tra phân quyền — không tin tưởng dữ liệu từ client.
+## Route handler & server action
+- [chặn merge] Route handler/server action MỚI thao tác dữ liệu người dùng mà không kiểm tra session/quyền phía server (chỉ dựa vào UI).
+- [cảnh báo] Route handler/server action MỚI không validate input.
+- [cảnh báo] Lấy session không qua API của thư viện auth dự án dùng (ví dụ `getServerSession`/`auth()` của NextAuth).
 
-**Biến môi trường & Bảo mật:**
-7. CHỈ biến có tiền tố `NEXT_PUBLIC_` mới được dùng ở client. Cảnh báo nghiêm trọng nếu secret server (không có tiền tố) bị truy cập trong Client Component → rò rỉ ra bundle.
-8. Không hardcode secret/API key.
+## Tối ưu & SEO (FE §5)
+- [cảnh báo] `<img>` thay vì `next/image`; `<a>` cho điều hướng nội bộ thay vì `next/link` — trừ ảnh/link ngoài có lý do rõ.
+- [cảnh báo] Domain/URL hardcode trong `metadata`, `robots.ts`, `sitemap.ts` thay vì cấu hình env (ví dụ `env.ORIGIN`).
+- [nit] Page public MỚI thiếu `metadata`/`generateMetadata`; route public mới không cập nhật `sitemap.ts`.
+- [nit] Font nạp bằng thẻ `<link>` thay vì `next/font`; component nặng chỉ dùng phía client không dùng `next/dynamic`.
 
-**Tối ưu hóa Next.js:**
-9. Dùng `next/image` (`<Image>`) thay cho `<img>` để tối ưu ảnh; bắt buộc có `alt`, `width/height` hoặc `fill`.
-10. Dùng `next/link` (`<Link>`) cho điều hướng nội bộ thay vì thẻ `<a>` thường.
-11. Dùng `next/font` thay vì tự nhúng font qua `<link>` khi phù hợp.
-12. Cân nhắc `dynamic import` cho component nặng/chỉ dùng phía client.
-
-**Cấu trúc & SEO:**
-13. Đặt `loading.js`/`error.js` (App Router) hoặc xử lý loading/error hợp lý cho UX.
-14. Khai báo `metadata`/`<Head>` cho SEO ở các trang quan trọng.
-15. Route Handler trả đúng status code và `Response`/`NextResponse` chuẩn.
-
-### 2. Ví dụ minh họa
-#### Bad Code:
-```jsx
-'use client';
-// Lỗi: dùng secret server trong client + img thường + fetch client không cần thiết
-export default function Page() {
-  const key = process.env.DB_SECRET; // rò rỉ secret ra client
-  const [data, setData] = useState();
-  useEffect(() => { fetch('/api/list').then(r => r.json()).then(setData); }, []);
-  return <img src="/banner.png" />;
-}
-```
-#### Good Code:
-```jsx
-// Server Component (mặc định) - fetch ở server, không lộ secret
-import Image from 'next/image';
-
-export default async function Page() {
-  const data = await getList(); // chạy phía server, dùng secret an toàn
-  return (
-    <>
-      <Image src="/banner.png" alt="Banner" width={1200} height={400} />
-      <List data={data} />
-    </>
-  );
-}
-```
+## Cấu hình
+- [cảnh báo] Đọc `process.env` ngoài module cấu hình env của dự án (ví dụ `configs/env.ts`), trừ `next.config.*`.

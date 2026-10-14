@@ -1,80 +1,48 @@
-# PubFuture Backend Architecture Diagram
+# PubFuture Backend — Kiến trúc & luật review
 
-Tài liệu này mô tả cấu trúc thư mục và chức năng của các module trong dự án PubFuture Backend (Node.js + ExpressJS).
-Mục đích: Hỗ trợ AI và Developer hiểu rõ ranh giới trách nhiệm của từng thành phần để review, maintain và refactor an toàn.
+Tài liệu mô tả cấu trúc, quy ước và luật review của PubFuture Backend (Node.js + Express). Căn cứ: 📐 Coding Standards — Backend Node.js/Express v1.0.
+Nhãn mức độ: [chặn merge] = 🔴 · [cảnh báo] = ⚠️ · [nit] = 💡. Quy tắc không có nhãn là mô tả, không dùng để báo lỗi.
+Lưu ý: cấu trúc dưới đây là khung tổng quát; tên thư mục có thể khác trong repo (ví dụ `services` hay `biz`). Khi review, theo pattern của domain gần nhất trong repo; không báo lỗi chỉ vì tên thư mục khác mô tả.
 
-## Cấu trúc tổng quan
+## 1. Tổng quan
+Backend tách bạch tầng HTTP, tầng nghiệp vụ và tầng truy cập dữ liệu/hạ tầng.
 
-Dự án được tổ chức theo hướng tách bạch giữa tầng HTTP, tầng nghiệp vụ và tầng truy cập dữ liệu/hạ tầng.
+## 2. Cấu trúc thư mục & trách nhiệm
+- Bootstrap: `src/app` hoặc `src/server` (Express app, middleware, global error handler), `src/config` (env, runtime config, feature flag, constant), `src/bootstrap` (khởi tạo dependency, kết nối DB/queue/cache).
+- HTTP: `src/routes` (endpoint, nhóm theo domain, versioning), `src/controllers` (parse request → gọi service → trả response), `src/middlewares` (auth, validation, logging, rate limit, request context), `src/validators` (schema đầu vào, không chứa nghiệp vụ).
+- Nghiệp vụ: `src/modules` hoặc `src/features` (theo domain), `src/services`/`src/use-cases` (use-case, orchestration), `src/domain` (entity, rule, domain error).
+- Dữ liệu & hạ tầng: `src/repositories` (truy vấn DB, map model ↔ domain), `src/models` (schema ORM), `src/integrations`/`src/clients` (API bên thứ ba), `src/lib`/`src/utils` (logger, telemetry, wrapper).
+- `tests/` hoặc `src/__tests__`, `scripts/` (migration, seed), `docs/`.
 
-### 1. App Bootstrap & Runtime
-Những thư mục/file này phụ trách khởi tạo server, middleware và lifecycle của ứng dụng.
-* `/src/app` hoặc `/src/server`: Khởi tạo Express app, đăng ký middleware, global error handler.
-* `/src/config`: Quản lý biến môi trường, runtime config, feature flags, app constants.
-* `/src/bootstrap`: Khởi tạo dependency, kết nối DB/queue/cache, startup jobs.
+## 3. Luật review
 
-### 2. HTTP Interface Layer
-Tầng này tiếp nhận request và chuyển giao vào nghiệp vụ.
-* `/src/routes`: Định nghĩa endpoint, route grouping theo domain và API versioning.
-* `/src/controllers`: Parse request, gọi service, map response status/body.
-* `/src/middlewares`: Auth, validation, logging, rate limit, request context.
-* `/src/validators`: Validate schema đầu vào (Joi, Zod, Yup...), không đặt business logic phức tạp.
+### 3.1. Ranh giới tầng — `route → middleware → validator → controller → service/use-case → repository/client → DB/API ngoài`
+- [chặn merge] Controller MỚI query DB/model trực tiếp khi domain đã có service/repository.
+- [chặn merge] Service/use-case nhận `req`/`res` của Express hoặc gọi `res.*`.
+- [cảnh báo] Logic nghiệp vụ dài (nhiều nhánh, tính toán, phối hợp nhiều nguồn) nằm trong controller.
+- [cảnh báo] Service gọi HTTP raw (`axios`/`fetch`) tới bên thứ ba thay vì qua `integrations`/`clients`.
+- [cảnh báo] Middleware dùng chung chứa luật nghiệp vụ của một domain.
+- [cảnh báo] Copy logic giữa các module thay vì tách use-case/helper dùng chung — CHỈ khi diff hiện cả hai đoạn trùng.
 
-### 3. Domain & Application Layer
-Tầng này chứa logic nghiệp vụ chính của hệ thống.
-* `/src/modules` hoặc `/src/features`: Chia theo domain (ví dụ: `auth`, `user`, `campaign`, `report`).
-* `/src/services`: Xử lý use-case, orchestration giữa nhiều repository/integration.
-* `/src/use-cases`: Đóng gói nghiệp vụ theo từng hành động rõ ràng.
-* `/src/domain`: Entity, value object, domain rules và domain error.
+### 3.2. Validate, auth, response, lỗi
+- [cảnh báo] Endpoint MỚI nhận input không có validator theo thư viện dự án đang dùng.
+- [cảnh báo] Endpoint MỚI thao tác dữ liệu người dùng không có middleware auth như các route cùng domain — dạng câu hỏi nếu không rõ có public không.
+- [cảnh báo] Throw raw error/trả lỗi thủ công ra API thay vì để error handler tập trung map lỗi.
+- [cảnh báo] Response mới khác format response các endpoint cùng domain.
+- [cảnh báo] Đổi request/response shape, status code, auth behavior của API public mà PR không ghi rõ.
 
-### 4. Data & Infrastructure Layer
-Tầng này giao tiếp với hệ thống bên ngoài và persistence.
-* `/src/repositories`: Truy vấn DB qua ORM/query builder, map data model <-> domain model.
-* `/src/models`: Định nghĩa schema ORM, migration metadata, DB DTO.
-* `/src/integrations` hoặc `/src/clients`: Gọi API bên thứ 3 (payment, email, analytics, storage...).
-* `/src/lib` và `/src/utils`: Helper chia sẻ, logger, telemetry adapter, wrappers dùng chung.
+### 3.3. Dữ liệu & vận hành
+- [chặn merge] Migration mới thiếu `down`; đổi schema bảng đang dùng không backward compatible mà không có kế hoạch.
+- [cảnh báo] Ghi nhiều bảng không dùng transaction.
+- [cảnh báo] Sửa logging, metrics, queue, cron, cache làm thay đổi hành vi vận hành mà PR không nêu.
+- [cảnh báo] Token/key hardcode; đọc `process.env` ngoài `src/config`.
 
-### 5. Test & Operational Support
-* `/tests` hoặc `/src/__tests__`: Unit test, integration test, route test.
-* `/scripts`: Script phục vụ migration, seed, maintenance task.
-* `/docs`: API contract, runbook, operational guideline.
+## 4. Quy ước đặt tên
+- [nit] File theo domain + vai trò (`user.controller.ts`, `user.service.ts`, `user.repository.ts`), thống nhất với domain gần nhất.
 
+## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
+- (Bổ sung tại đây các chỗ code cũ chưa theo chuẩn và các mẫu báo sai lặp lại mà dev đã xác nhận.)
 
-# PubFuture Backend - Architectural Guidelines & Context cho AI
-
-PubFuture Backend được xây dựng theo hướng scalable backend architecture với ExpressJS. Hãy đọc kỹ các quy tắc dưới đây trước khi review hoặc đề xuất thay đổi code.
-
-## 1. Phân tầng Kiến trúc (Layered Backend)
-
-Hệ thống được chia thành 4 tầng chính:
-1. **HTTP Layer:** Route, middleware, controller; xử lý giao tiếp request/response.
-2. **Application Layer:** Service/use-case điều phối luồng nghiệp vụ.
-3. **Domain Layer:** Entity, domain rule, domain validation.
-4. **Infrastructure Layer:** Repository, DB, external API, queue, cache.
-
-## 2. Ranh giới Module & Quy tắc phụ thuộc (Dependency Rules)
-
-### A. HTTP Layer (Route/Controller/Middleware)
-File trong `routes/controllers/middlewares/validators` chỉ nên xử lý giao tiếp HTTP và cross-cutting concerns.
-* Không đặt business logic dài trong controller.
-* Controller không query DB trực tiếp nếu đã có service/repository.
-* Middleware tái sử dụng theo chức năng chung, không hardcode domain rule vào middleware generic.
-
-### B. Application & Domain Layer (Service/Use-case)
-File trong `services/use-cases/domain/modules` là nơi đặt logic nghiệp vụ.
-* Service được phép orchestration transaction, policy, validation nghiệp vụ.
-* Không import trực tiếp chi tiết hạ tầng nếu đã có abstraction từ repository/client.
-* Tách logic dùng chung thành use-case/helper thay vì copy giữa các module.
-
-### C. Infrastructure Layer (Repository/Client/Model)
-File trong `repositories/models/integrations/lib` chịu trách nhiệm truy cập tài nguyên bên ngoài.
-* Tất cả DB access đi qua repository để thống nhất transaction, retry và error mapping.
-* Tất cả external API call đi qua client/integration layer, không gọi raw request trong service/controller.
-* Secret và config nhạy cảm chỉ đọc từ environment config, không hardcode token/key.
-
-## 3. Quy tắc Refactoring cho AI
-1. **Bảo toàn hợp đồng API:** Khi refactor route/controller public, không thay đổi request/response shape, status code, auth behavior nếu chưa có yêu cầu rõ ràng.
-2. **Single Responsibility:** Mỗi controller/service/repository chỉ nên có một trách nhiệm chính, tách nhỏ khi hàm vượt qua ngưỡng khó đọc.
-3. **An toàn dữ liệu:** Mọi thay đổi liên quan transaction, migration, query phải bảo toàn tính đúng dữ liệu và backward compatibility.
-4. **Quản lý lỗi nhất quán:** Lỗi domain và lỗi hạ tầng cần được map thống nhất qua error handler, tránh throw raw error ra API.
-5. **Không phá vỡ vận hành:** Refactor liên quan logging, metrics, queue, cron, cache phải giữ nguyên hành vi vận hành hiện tại trừ khi có yêu cầu thay đổi.
+## 6. Nguyên tắc khi AI sửa/sinh code (không dùng để báo lỗi review)
+- Bảo toàn hợp đồng API; giữ hành vi vận hành; ưu tiên thay đổi nhỏ, đúng tầng.
+- Mỗi controller/service/repository một trách nhiệm chính; tách nhỏ khi khó đọc.

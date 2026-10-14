@@ -1,117 +1,66 @@
-# Invalid Traffic Backend — Architecture Diagram
+# Invalid Traffic Backend (Go) — Kiến trúc & luật review
 
-Tài liệu này mô tả cấu trúc và quy tắc của dự án `invalid-traffic-backend-go` (Go).
-Mục đích: Hỗ trợ AI và Developer hiểu rõ vị trí và trách nhiệm từng thành phần để review, maintain và refactor an toàn.
+Tài liệu mô tả cấu trúc, quy ước và luật review của `invalid-traffic-backend-go`. Căn cứ: 📐 Coding Standards — Backend Go/Gin v1.0 (luật dưới đây thay thế các mục Go chung khi khác nhau).
+Nhãn mức độ: [chặn merge] = 🔴 · [cảnh báo] = ⚠️ · [nit] = 💡. Quy tắc không có nhãn là mô tả, không dùng để báo lỗi.
 
-## Cấu trúc tổng quan
-
-Nhận signals từ JS SDK, chạy qua các bộ lọc GIVT rồi tính điểm SIVT để phân loại traffic là human hay bot/invalid. Trả về `sivt_risk_score`.
-
-### 1. Entry point & DI
-* `cmd/api/`: Khởi động server, load env. Wire DI assembles `Config → Redis → SnapshotService → TrafficPipelineService → HTTP handlers`. Sau mỗi lần đổi provider, chạy `wire ./cmd/api/`.
-* `cmd/tools/`: CLI tools một lần — convert blacklist/whitelist/UA data sang Redis snapshot.
-
-### 2. HTTP Layer (`internal/app/api/`)
-* `router/`: Đăng ký routes, mount middleware.
-* `controller/traffic.go`: Parse body → build `TrafficPipelineContext` → gọi pipeline → map output sang response.
-* `middleware/`: CORS, logging, panic recovery, ETag.
-* `binding/dce.go`: `NormalizedPayload` — canonical struct cho toàn bộ JS SDK payload.
-
-### 3. Pipeline (`internal/service/`)
-* `traffic_pipeline.go`: `TrafficPipelineService` — orchestrate toàn bộ GIVT + SIVT theo thứ tự cố định. Matchers GIVT-01/02 lưu trong `atomic.Pointer` để hot-swap không lock.
-* `snapshot.go`: Load/reload GIVT-01 và GIVT-02 data từ Redis snapshot; pub/sub subscriber trigger hot-reload khi có thay đổi.
-* `givt01/` → `givt05/`: Mỗi bộ lọc GIVT là package riêng biệt.
-* `sivtl0/`, `sivtl1m1/` → `sivtl1m3/`, `sivtl2bcs/`, `sivtl2clis/`, `sivtl2nas/`, `sivtl2sas/`, `sivtl2/`: Các module SIVT.
-* `sivt/config.go`: Toàn bộ weights, thresholds, hard floors — nguồn sự thật duy nhất cho scoring config.
-
-### 4. Infrastructure & Config
-* `internal/db/`: Tạo `pgxpool.Pool` và `redis.Client`.
-* `internal/config/config.go`: Đọc toàn bộ biến môi trường qua `caarlos0/env`.
-* `internal/common/`: `APIError`, `APIResponse`, enums dùng chung.
-
-
-# Invalid Traffic Backend — Architectural Guidelines & Context cho AI
-
-## 1. Tổng quan dự án
-
-**JS SDK** (`IvtSendUserSummary`) → **`POST /v1/check-traffic`** → parse `NormalizedPayload` → pipeline GIVT → SIVT scoring → trả về `{ action, sivt_risk_score, trace[] }`.
-
-- `action = "NO_BID"`: traffic invalid, bị block tại một GIVT stage hoặc SIVT score cao.
-- `action = "PASS"`: vượt qua tất cả filters, được coi là human traffic.
-
+## 1. Tổng quan
+**JS SDK** (`IvtSendUserSummary`) → **`POST /v1/check-traffic`** → parse `NormalizedPayload` → pipeline GIVT → SIVT scoring → trả `{ action, sivt_risk_score, trace[] }`.
+- `action = "NO_BID"`: bị chặn ở một stage GIVT hoặc SIVT score cao. `action = "PASS"`: coi là human traffic.
 Stack: **Gin · Redis · Google Wire · zerolog**.
 
-## 2. Pipeline chi tiết
+### GIVT (tuần tự, short-circuit; fail → `NO_BID` ngay)
+GIVT-03 Malformed (`givt03/`) → GIVT-04 Prefetch (`givt04/`) → GIVT-01 Datacenter/Proxy (`givt01/`, matcher RAM `atomic.Pointer`) → GIVT-02 Non-Human Bot (`givt02/`, UA + FCrDNS) → GIVT-05 Velocity (`givt05/`, Redis sliding window). GIVT-01/02 load từ Redis snapshot lúc startup, hot-reload qua Redis Pub/Sub.
 
-### GIVT — Bộ lọc cơ bản (sequential, short-circuit)
+### SIVT (khi qua hết GIVT)
+- L0 Hard Block (`sivtl0/`): triggered → score = 1.0, bỏ L1/L2.
+- L1 weighted average: M1 Headless/Automation 0.30 · M2 Device Fingerprint 0.15 · M3 Network Anomaly 0.25. L1 ≥ 0.60 → dùng L1, bỏ L2.
+- L2 Coherence-Weighted: BCS 0.40 · CLIS 0.20 · NAS 0.25 · SAS 0.15; K ≥ 3 signal độc lập → khuếch đại; hard floor ghi đè nếu cao hơn.
+- Final = `max(L1, L2 coherence_score)`. Mọi weight/threshold/hard floor nằm ở `sivt/config.go`.
 
-Mỗi bước fail → trả `NO_BID` ngay, không chạy tiếp:
+## 2. Cấu trúc thư mục & trách nhiệm
+- `cmd/api/`: Wire `Config → Redis → SnapshotService → TrafficPipelineService → handlers`. `cmd/tools/`: CLI chuyển blacklist/whitelist/UA data sang Redis snapshot.
+- `internal/app/api/`: `router/`, `controller/traffic.go` (parse body → build `TrafficPipelineContext` → gọi pipeline → map response), `middleware/` (CORS, logging, recovery, ETag), `binding/dce.go` (`NormalizedPayload`).
+- `internal/service/`: `traffic_pipeline.go` (orchestrate GIVT + SIVT theo thứ tự cố định), `snapshot.go` (load/reload GIVT-01/02), `givt01/`…`givt05/`, các package `sivt*`, `sivt/config.go`.
+- `internal/db/` (pgxpool, redis), `internal/config/config.go` (`caarlos0/env`), `internal/common/` (`APIError`, `APIResponse`, enum).
 
-| Stage | Package | Cơ chế |
-|-------|---------|---------|
-| GIVT-03 Malformed | `givt03/` | Validate IP (missing/bogon/malformed/WebRTC mismatch), schema payload |
-| GIVT-04 Prefetch | `givt04/` | Detect browser prefetch/prerender qua request headers |
-| GIVT-01 Datacenter/Proxy | `givt01/` | Match IP/CIDR/ASN vs blacklist trong RAM (`atomic.Pointer`) |
-| GIVT-02 Non-Human Bot | `givt02/` | Match UA vs bot signatures trong RAM, FCrDNS verification |
-| GIVT-05 Velocity | `givt05/` | Rate limit per IP qua Redis sliding window |
+## 3. Luật review
 
-GIVT-01 và GIVT-02 matchers load từ Redis snapshot lúc startup, hot-reload qua Redis Pub/Sub — không cần restart server.
+### 3.1. Ranh giới tầng — `cmd → app/api → service → db`
+- [chặn merge] Controller gọi Redis/DB trực tiếp; package pipeline/stage import `gin`.
+- [chặn merge] Sửa tay `wire_gen.go`.
+- [cảnh báo] Logic scoring/lọc đặt trong controller hoặc binding.
 
-### SIVT — Tính điểm (nếu qua hết GIVT)
+### 3.2. Pipeline
+- [chặn merge] Đổi thứ tự GIVT-03 → 04 → 01 → 02 → 05 → SIVT, hoặc thứ tự L0 → L1 → L2, mà PR không ghi rõ lý do.
+- [chặn merge] Stage GIVT fail mà không return sớm (vẫn chạy tiếp stage sau).
+- [chặn merge] Hot path dùng lock (`Mutex`) cho matcher GIVT-01/02 thay vì `atomic.Pointer`; reload bằng cách khởi tạo lại service thay vì `ReloadGIVT01()`/`ReloadGIVT02()`.
+- [chặn merge] Sửa `NormalizedPayload` sau khi parse (payload read-only trong pipeline; enrichment phải inject ở binding trước khi vào pipeline).
+- [cảnh báo] Output của stage không ghi vào đúng field của `TrafficPipelineContext`, hoặc truyền output rời giữa các stage.
+- [cảnh báo] Stage mới không append `FilterTrace` vào `ctx.Trace`; stage mới không có constant trong `ivt_enums.go`.
+- [cảnh báo] Signal SIVT mới không đủ 2 chỗ: `Extract*Signals()` (chỉ đọc payload) và `CheckSignals()` (đánh giá); đưa logic scoring vào Extract.
 
-**L0 — Hard Block** (`sivtl0/`): Check một số signal cứng. Nếu triggered → `sivt_risk_score = 1.0`, bỏ qua L1/L2.
+### 3.3. Scoring config
+- [chặn merge] Hardcode weight/threshold/hard floor trong module scoring thay vì `sivt/config.go`.
+- [cảnh báo] Đổi giá trị trong `sivt/config.go` mà PR không ghi rõ yêu cầu.
+- [cảnh báo] Module SIVT mới không thêm weight vào `sivt/config.go` hoặc không wire vào L1 weighted average.
 
-**L1 — Risk Score** (weighted average, 3 module đang active):
-
-| Module | Package | Mô tả | Weight |
-|--------|---------|-------|--------|
-| M1 | `sivtl1m1/` | Headless / Automation detection | 0.30 |
-| M2 | `sivtl1m2/` | Device Fingerprint anomalies (GPU, audio, screen) | 0.15 |
-| M3 | `sivtl1m3/` | Network Anomaly (IP type, geo, WebRTC) | 0.25 |
-
-Nếu L1 score ≥ 0.60 → dùng L1 score làm final, bỏ qua L2.
-
-**L2 — Coherence-Weighted Aggregation** (`sivtl2/`):
-
-| Sub-score | Package | Mô tả | Weight |
-|-----------|---------|-------|--------|
-| BCS | `sivtl2bcs/` | Behavioral Coherence (scroll/click/audio incoherence) | 0.40 |
-| CLIS | `sivtl2clis/` | Cross-Layer Inconsistency (UA vs TLS/JA4/HTTP) | 0.20 |
-| NAS | `sivtl2nas/` | Network Anomaly (JA4 bot, fraud proxy, geo-TZ) | 0.25 |
-| SAS | `sivtl2sas/` | Server Anomaly (bid request inconsistency) | 0.15 |
-
-L2 có Coherence Amplification: nếu K ≥ 3 independent signals triggered → score được khuếch đại. Hard floors của individual signals ghi đè base score nếu cao hơn.
-
-**Final score**: `max(L1, L2 coherence_score)`.
-
-## 3. Quy tắc làm việc & dependency
-
-1. **Giữ đúng tầng:** `cmd/ → app/api/ → service/ → db/`. Controller không gọi Redis/DB trực tiếp. Pipeline service không import `gin`.
-2. **`TrafficPipelineContext` là shared state:** Mọi output của mỗi stage phải ghi vào đúng field trong `TrafficPipelineContext`. Không truyền output riêng lẻ giữa các stage.
-3. **Thứ tự pipeline cố định:** GIVT-03 → GIVT-04 → GIVT-01 → GIVT-02 → GIVT-05 → SIVT. Không thay đổi thứ tự này.
-4. **GIVT short-circuit:** Stage nào fail phải return sớm, không chạy tiếp. Mỗi stage append một `FilterTrace` vào `ctx.Trace` để observability.
-5. **Matchers trong RAM:** GIVT-01 và GIVT-02 dùng `atomic.Pointer` — không lock hot path. Reload qua `ReloadGIVT01()` / `ReloadGIVT02()`, không khởi tạo lại service.
-6. **Scoring config tập trung tại `sivt/config.go`:** Mọi weight, threshold, hard floor phải định nghĩa ở đây. Không hardcode số trong các module scoring.
-7. **Signal mới cho SIVT — 2 chỗ:** `Extract*Signals()` (đọc từ `NormalizedPayload`) và `CheckSignals()` (đánh giá từng signal). Không thêm logic scoring vào Extract.
-8. **`NormalizedPayload` là read-only trong pipeline:** Không modify payload sau khi parse. Mọi enrichment (server IP, network data) phải được binding layer inject trước khi vào pipeline.
-9. **Config từ env:** Không hardcode URL, Redis addr, threshold động. Đọc từ `internal/config/config.go`.
-10. **Redis optional cho GIVT-01/02:** Nếu snapshot chưa có trong Redis, stage PASS (không block). Log warn, không panic.
+### 3.4. Contract, lỗi, cấu hình
+- [chặn merge] Đổi shape response `{ action, sivt_risk_score, trace[] }` (contract với JS SDK).
+- [chặn merge] `panic` trong pipeline.
+- [cảnh báo] Redis snapshot GIVT-01/02 chưa có làm block hoặc panic thay vì PASS + `log.Warn`.
+- [cảnh báo] Hardcode URL, Redis addr, threshold động thay vì `internal/config/config.go`.
+- [cảnh báo] Lỗi không bọc `%w`; log raw IP/UA kèm định danh người dùng ở mức info.
 
 ## 4. Quy ước đặt tên
+- [nit] Package theo chức năng chữ thường (`givt01`, `sivtl1m1`); file `snake_case.go`; struct PascalCase.
+- [nit] Stage output là pointer (`*givtXX.Output`, `*sivtYY.Score`), nil khi stage chưa chạy.
+- [nit] Rule code `UPPER_SNAKE_CASE` có prefix stage (`GIVT_01_CLD_AZURE`, `GIVT_03_IP_BOGON`).
 
-- **Package:** lowercase theo chức năng — `givt01`, `sivtl1m1`, `sivtl2bcs`.
-- **File:** `snake_case` theo vai trò — `scoring.go`, `device_signals.go`, `matcher.go`.
-- **Struct:** PascalCase — `TrafficPipelineService`, `TrafficPipelineContext`, `FilterTrace`.
-- **Stage output:** `*givtXX.Output` hoặc `*sivtYY.Score` — pointer, nil khi stage chưa chạy.
-- **Rule code:** `UPPER_SNAKE_CASE` với prefix stage — `GIVT_01_CLD_AZURE`, `GIVT_03_IP_BOGON`.
-- **Error:** `fmt.Errorf("context: %w", err)`. Không panic trong pipeline.
+## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
+- Chỉ 3 module L1 (M1–M3) đang active; M4–M6 chưa có — không báo "thiếu module".
+- (Bổ sung tại đây các mẫu báo sai lặp lại mà dev đã xác nhận.)
 
-## 5. Nguyên tắc refactor cho AI
-
-- Bảo toàn response shape `{ action, sivt_risk_score, trace[] }` — contract với JS SDK.
-- Không đổi thứ tự GIVT stages hay SIVT L0→L1→L2 — có chủ đích (cheap checks trước, scoring sau).
-- Không sửa weights/thresholds/hard floors trong `sivt/config.go` khi chưa được yêu cầu rõ ràng.
-- Khi thêm GIVT stage mới: thêm vào `run()` đúng vị trí, định nghĩa stage constant trong `ivt_enums.go`.
-- Khi thêm SIVT module mới (M4–M6): thêm weight trong `sivt/config.go`, wire vào L1 weighted average trong `extractSIVTDeviceSignals()`.
-- Sau khi đổi Wire provider, chạy `wire ./cmd/api/` và commit `wire_gen.go`.
-- Ưu tiên thay đổi nhỏ, đúng tầng, dễ review.
+## 6. Nguyên tắc khi AI sửa/sinh code (không dùng để báo lỗi review)
+- Thêm GIVT stage: thêm vào `run()` đúng vị trí, định nghĩa constant trong `ivt_enums.go`.
+- Thêm module SIVT: weight trong `sivt/config.go`, wire vào L1 trong `extractSIVTDeviceSignals()`.
+- Sau khi đổi Wire provider, chạy `wire ./cmd/api/` và commit `wire_gen.go`. Ưu tiên thay đổi nhỏ, đúng tầng.

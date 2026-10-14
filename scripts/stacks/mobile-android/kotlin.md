@@ -1,53 +1,37 @@
-### 1. Chỉ thị dành cho AI (Android - Kotlin/Java)
-Bạn là một Senior Android Engineer khắt khe. Hãy review code changes với trọng tâm về null-safety, vòng đời (lifecycle), rò rỉ bộ nhớ, luồng (threading) và tính chuẩn mực của Kotlin. Tập trung vào các tiêu chí:
+# Quy tắc Android (Kotlin/Java) — SDK và app Android
+Nguồn: Coding Standards — Mobile SDK (PubStar) §1, §3 + CORE. Mục "Public API" CHỈ áp dụng cho dự án là SDK/thư viện publish.
 
-**Null-safety & Kotlin idiomatic:**
-1. Tuyệt đối hạn chế non-null assertion (`!!`) vô căn cứ → nguy cơ `NullPointerException`. Ưu tiên `?.`, `?:`, `let`, `requireNotNull` có thông điệp rõ.
-2. Ưu tiên `val` thay vì `var` khi không cần thay đổi; dùng `data class`, `sealed class`, `when` exhaustive (không cần `else` khi đã phủ hết nhánh sealed/enum).
-3. Tránh ép kiểu cưỡng bức (`as`) → dùng safe cast (`as?`) và kiểm tra kiểu.
+## Public API & tương thích (SDK §1.1) — CHỈ áp dụng cho SDK/thư viện
+- [chặn merge] Đổi/xoá package, class, method, tham số hoặc kiểu trả về public mà PR không ghi là breaking change có chủ đích (major version + changelog).
+- [cảnh báo] Type internal lộ ra trong signature public; đổi class internal thành `public` để gọi chéo module (Kotlin mặc định `internal`, Java package-private).
+- [cảnh báo] Thêm API mới bằng cách sửa signature cũ thay vì overload/builder + `@Deprecated`.
+- [cảnh báo] Public API ném exception ra app tích hợp khi không phải dùng sai rõ ràng; lỗi không trả qua callback kèm error code.
 
-**Vòng đời & rò rỉ bộ nhớ (rất quan trọng):**
-4. Cấm giữ tham chiếu `Activity`/`View`/`Fragment`/`Context` lâu hơn vòng đời của chúng (static field, singleton, callback dài hạn) → memory leak. Ưu tiên `applicationContext` khi phù hợp.
-5. Phải hủy (`cancel`) `Handler`, `Coroutine`/`Job`, `Timer`, listener, observer, subscription khi `onDestroy`/`onCleared`. Dùng `viewModelScope`/`lifecycleScope` thay vì `GlobalScope`.
-6. Cảnh báo truy cập binding/view sau khi view đã destroy (đặc biệt Fragment `_binding`).
+## Ranh giới module (SDK §2)
+- [chặn merge] Module core phụ thuộc module adapter/plugin; adapter phụ thuộc adapter khác.
+- [cảnh báo] Core import SDK quảng cáo/bên thứ 3 mà logic riêng network đó phải nằm ở adapter.
 
-**Threading & bất đồng bộ:**
-7. Cấm thao tác nặng (network, disk, DB) trên Main thread. Mọi cập nhật UI phải về Main thread.
-8. Coroutine: dùng đúng `Dispatchers` (IO cho I/O, Main cho UI); không nuốt `CancellationException`; xử lý lỗi qua `try/catch` hoặc `CoroutineExceptionHandler`.
+## Threading & lifecycle (SDK §1.3)
+- [chặn merge] Giữ `Activity`/`Fragment`/`View`/`Context` không phải application trong field static, singleton hoặc callback sống lâu hơn lifecycle.
+- [chặn merge] Network/disk I/O trên main thread (`runBlocking` trên main, gọi HTTP đồng bộ trong callback UI).
+- [chặn merge] `Handler.postDelayed`, `Timer`, coroutine `Job`, listener MỚI không được huỷ khi destroy/clear.
+- [cảnh báo] Cập nhật UI/callback cho app từ background thread mà không chuyển về main thread.
+- [cảnh báo] `GlobalScope.launch` thay vì scope gắn lifecycle/scope của SDK.
+- [cảnh báo] Có khả năng gọi callback 2 lần (load/show không có cờ trạng thái).
+- [cảnh báo] Truy cập state dùng chung từ nhiều thread mà không `synchronized`/`Atomic*`/`Mutex`.
 
-**Kiến trúc & chất lượng:**
-9. Tôn trọng phân tầng (UI → ViewModel/UseCase → Repository → DataSource). UI không gọi network/DB trực tiếp; business logic không nằm trong Activity/Fragment.
-10. Trạng thái UI nên bất biến (immutable state) và đẩy qua `StateFlow`/`LiveData`; tránh mutable state lộ ra ngoài.
+## Kotlin
+- [cảnh báo] `!!` trên giá trị mà diff cho thấy có thể null (kết quả `find`, `get`, field nullable vừa gán).
+- [cảnh báo] `catch (e: Exception) {}` rỗng hoặc chỉ `printStackTrace()`.
+- [nit] `var` cho giá trị không đổi; `lateinit` cho field có thể chưa khởi tạo khi được dùng.
 
-**Bảo mật & cấu hình:**
-11. Không hardcode URL production, API key, credential, token trong source → đọc từ `BuildConfig`/`local.properties`/biến môi trường.
-12. KHÔNG log dữ liệu nhạy cảm (PII, token, credential). Log có kiểm soát theo cờ `isDebug`.
+## Log, cấu hình, bảo mật (SDK §1.4–§1.6)
+- [chặn merge] Log PII, credential, token, GAID; log không đi qua cờ debug/`isShowLog` của dự án.
+- [chặn merge] Credential/API key trong source.
+- [cảnh báo] Hardcode URL/endpoint production thay vì `BuildConfig`/`local.properties`/cấu hình.
+- [cảnh báo] Commit output build (`*/build/`, `BuildConfig.java`, `R.jar`, `R.txt`).
 
-### 2. Ví dụ minh họa
-#### Bad Code:
-```kotlin
-class AdManager {
-    companion object { var activity: Activity? = null } // Lỗi: giữ Activity tĩnh → leak
-
-    fun load(ctx: Context) {
-        val data = api.fetchSync()          // Lỗi: network trên main thread
-        val title = data.title!!            // Lỗi: !! vô căn cứ
-        Handler(Looper.getMainLooper()).postDelayed({ /* ... */ }, 5000) // không cancel
-    }
-}
-```
-#### Good Code:
-```kotlin
-class AdViewModel(private val repo: AdRepository) : ViewModel() {
-    private val _state = MutableStateFlow<AdState>(AdState.Idle)
-    val state: StateFlow<AdState> = _state.asStateFlow()
-
-    fun load() = viewModelScope.launch {
-        _state.value = runCatching { repo.fetchAd() } // chạy trên Dispatchers.IO trong repo
-            .fold(
-                onSuccess = { AdState.Success(it) },
-                onFailure = { AdState.Error(it.message.orEmpty()) },
-            )
-    }
-}
-```
+## Proguard/R8 & resource (SDK §1.5)
+- [cảnh báo] Xoá keep rule đang dùng; class dùng reflection/được SDK ngoài gọi MỚI mà không có keep rule (ưu tiên `consumer-rules.pro` của đúng module).
+- [cảnh báo] Đổi/xoá resource id public mà app tích hợp có thể tham chiếu.
+- [nit] Dependency bên thứ 3 dùng `implementation` khi `compileOnly` phù hợp hơn cho thư viện publish.

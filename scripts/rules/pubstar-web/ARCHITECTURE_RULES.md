@@ -1,41 +1,51 @@
-# PubStar Web - Architecture Rules
+# PubStar Web — Kiến trúc & luật review
 
-Tài liệu này mô tả nhanh cấu trúc và quy ước nhẹ cho dự án `pubstar-web`.
-Mục đích: giúp AI và Developer hiểu vị trí code, sửa đúng nơi, không tạo rule quá chặt gây khó phát triển.
+Tài liệu mô tả cấu trúc, quy ước và luật review của `pubstar-web`. Căn cứ: 📐 Coding Standards — Frontend React/Next.js v1.0, áp dụng mức "nhẹ": theo pattern có sẵn của màn hình gần nhất, không ép refactor code cũ.
+Nhãn mức độ: [chặn merge] = 🔴 · [cảnh báo] = ⚠️ · [nit] = 💡. Quy tắc không có nhãn là mô tả, không dùng để báo lỗi.
+Dự án này ưu tiên ít nhiễu: các mục FE chung không có trong luật dưới đây (ví dụ Redux, `/v2`, `configs/env.ts`) KHÔNG áp dụng nếu repo không dùng.
 
-## 1. Tổng quan dự án
+## 1. Tổng quan
+Next.js 14 (App Router), React 18, TypeScript, Ant Design, SCSS, API client sinh từ OpenAPI, đa ngôn ngữ theo `[locale]`.
 
-`pubstar-web` là ứng dụng web dùng Next.js 14, React 18, TypeScript, Ant Design, SCSS và API client sinh từ OpenAPI.
+## 2. Cấu trúc thư mục & trách nhiệm
+- `src/app/[locale]/(auth)`: đăng nhập, đăng ký, quên mật khẩu, xác thực email.
+- `src/app/[locale]/(home)`: trang public (landing, privacy, terms).
+- `src/app/[locale]/(protected)`: màn hình cần đăng nhập (user dashboard, admin).
+- `src/components`: form, modal, table, layout, icon, auth component dùng lại.
+- `src/hooks`: fetch option, notification, filter, view-as-publisher...
+- `src/services/openapi`: client sinh từ `swagger.json` — KHÔNG sửa tay.
+- `src/utils`: helper, constant, interface. `src/navigation`, `src/i18n.ts`: điều hướng, i18n. `public/assets`: static assets.
 
-Các khu vực chính:
+## 3. Luật review
 
-* `/src/app`: App Router của Next.js, chứa route, layout, page theo locale và theo nhóm màn hình.
-* `/src/app/[locale]/(auth)`: Các màn hình đăng nhập, đăng ký, quên mật khẩu, xác thực email.
-* `/src/app/[locale]/(home)`: Trang public như landing page, privacy policy, terms.
-* `/src/app/[locale]/(protected)`: Các màn hình cần đăng nhập, bao gồm user dashboard và admin.
-* `/src/components`: Component dùng lại nhiều nơi, ví dụ form, modal, table, layout, icon, auth component.
-* `/src/hooks`: Custom hooks dùng chung cho fetch option, notification, filter, view-as-publisher, v.v.
-* `/src/services/openapi`: API client được generate từ `swagger.json`. Hạn chế sửa tay trực tiếp trong thư mục này.
-* `/src/utils`: Helper, constant, interface và logic tiện ích dùng chung.
-* `/src/navigation`, `/src/i18n.ts`: Điều hướng và cấu hình đa ngôn ngữ.
-* `/public/assets`: Ảnh, icon, SVG và static assets.
+### 3.1. Auth & quyền
+- [chặn merge] Màn hình/route mới cần đăng nhập đặt ngoài `(protected)` hoặc bỏ qua protected layout/kiểm tra quyền hiện có.
+- [chặn merge] Diff gỡ bỏ logic quyền, role, view-as-publisher hiện có mà không có thay thế.
+- [cảnh báo] Chức năng admin mới chỉ ẩn nút theo role mà không theo pattern kiểm quyền của màn hình admin khác — dạng câu hỏi.
 
-## 2. Quy tắc làm việc đơn giản
+### 3.2. API
+- [cảnh báo] Sửa tay file trong `src/services/openapi` (phải sửa `swagger.json` rồi generate lại). KHÔNG review nội dung code sinh tự động.
+- [cảnh báo] Gọi `fetch`/`axios` trực tiếp cho endpoint đã có trong `DefaultApi`; tự khai báo lại type đã có trong client OpenAPI.
+- [cảnh báo] Hardcode URL API/secret trong component.
 
-1. **Giữ đúng vị trí code:** Route/page để trong `/src/app`; UI dùng lại để trong `/src/components`; logic dùng lại để trong `/src/hooks` hoặc `/src/utils`.
-2. **Không làm rule quá chặt:** Ưu tiên sửa theo pattern đang có trong file/thư mục gần nhất. Không refactor lớn nếu yêu cầu chỉ là bug fix hoặc thay đổi nhỏ.
-3. **Client/Server Component:** Chỉ thêm `"use client"` khi component cần hook React, browser API, event handler hoặc state. Không thêm bừa vào page/layout nếu không cần.
-4. **API:** Ưu tiên dùng `DefaultApi` và type từ `/src/services/openapi`. Nếu cần đổi API contract, cập nhật `swagger.json` rồi generate lại thay vì sửa trực tiếp file generate.
-5. **UI:** Ưu tiên Ant Design và component sẵn có trong `/src/components`. SCSS nên đặt gần màn hình/component đang dùng, theo pattern hiện tại.
-6. **Form/Table/Filter:** Khi thêm màn hình CRUD/list, tham khảo các màn hình có sẵn trong admin hoặc user area để giữ UX nhất quán.
-7. **i18n:** Với text hiển thị cho user, ưu tiên theo cơ chế translation hiện có nếu màn hình đó đang dùng đa ngôn ngữ. Không bắt buộc refactor toàn bộ text cũ.
-8. **Auth & permission:** Không bỏ qua protected layout, view-as-publisher hoặc logic quyền hiện có khi sửa màn hình trong `(protected)`.
-9. **TypeScript:** Dùng type rõ ràng cho data quan trọng, nhưng không cần over-engineer generic/phân tầng nếu feature nhỏ.
-10. **Trước khi sửa lớn:** Nếu thay đổi ảnh hưởng nhiều route, API client, auth hoặc permission, hãy đọc thêm file liên quan và xác nhận phạm vi trước.
+### 3.3. Next.js & UI
+- [cảnh báo] Thêm `"use client"` cho page/layout không dùng hook/state/event/browser API.
+- [cảnh báo] Text hiển thị mới hardcode trong màn hình ĐANG dùng translation — KHÔNG áp dụng cho màn hình chưa dùng i18n, KHÔNG yêu cầu refactor text cũ.
+- [cảnh báo] Điều hướng nội bộ không dùng helper trong `src/navigation` (mất locale) — khi màn hình đó đang dùng.
+- [nit] Tự dựng lại form/table/modal khi `src/components` hoặc AntD đã có; màn hình CRUD/list mới lệch UX so với màn hình cùng loại.
+- [nit] SCSS đặt xa component đang dùng thay vì cạnh màn hình theo pattern hiện tại.
 
-## 3. Nguyên tắc refactor cho AI
+### 3.4. TypeScript
+- [cảnh báo] `any` mới cho dữ liệu API quan trọng khi type OpenAPI đã có.
+- KHÔNG báo việc thiếu generic/phân tầng cho feature nhỏ.
 
-* Bảo toàn route, URL, query param và behavior public nếu không được yêu cầu đổi.
-* Không đổi cấu trúc response/API usage khi chưa kiểm tra backend hoặc OpenAPI type.
-* Không xóa các disable ESLint/comment hiện có nếu chưa hiểu lý do.
-* Ưu tiên thay đổi nhỏ, dễ review, đúng mục tiêu.
+## 4. Quy ước đặt tên
+- [nit] Theo pattern file/thư mục của màn hình gần nhất.
+
+## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
+- Các `eslint-disable` và comment hiện có: không đề xuất xoá.
+- Text cũ chưa i18n, màn hình cũ chưa theo chuẩn FE mới: chỉ báo khi code MỚI.
+
+## 6. Nguyên tắc khi AI sửa/sinh code (không dùng để báo lỗi review)
+- Bảo toàn route, URL, query param, behavior public. Không đổi cách dùng API khi chưa kiểm tra OpenAPI type.
+- Thay đổi lớn ảnh hưởng nhiều route, API client, auth, permission: đọc file liên quan và xác nhận phạm vi trước. Ưu tiên thay đổi nhỏ.

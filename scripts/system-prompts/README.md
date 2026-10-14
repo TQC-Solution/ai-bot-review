@@ -1,108 +1,77 @@
 # Review Prompt Templates
 
-Thư mục này chứa các **prompt template** dùng chung cho AI review. Đây là phần "thân" prompt — trung lập với ngôn ngữ/framework; kiến thức đặc thù công nghệ được nạp động qua biến `{coding_stack}` và `{coding_rules}`.
+Thư mục này chứa **prompt template** dùng chung cho AI review và script lắp ráp prompt. Template trung lập với ngôn ngữ/framework; kiến thức đặc thù được nạp động qua `{coding_stack}` và `{coding_rules}`.
 
 ## Files
 
 - **`review_prompt_vi.txt`** — template tiếng Việt (mặc định)
-- **`review_prompt_en.txt`** — template tiếng Anh
+- **`review_prompt_en.txt`** — template tiếng Anh (luật nạp vào vẫn bằng tiếng Việt; template EN có phần giải nghĩa nhãn)
+- **`build-prompt.sh`** — lắp prompt cho luồng chính (`action.yml` → `anthropics/claude-code-action`)
 
-> ⚠️ Hai file này phải **đồng bộ về mặt logic**. Khi sửa tiêu chí/format ở một file, hãy áp dụng thay đổi tương ứng cho file còn lại — nếu không, kết quả review sẽ khác nhau tùy `review-language`.
+> ⚠️ Hai template phải **đồng bộ về logic**. Sửa tiêu chí/format ở một file thì sửa tương ứng file còn lại.
+> ⚠️ Template KHÔNG được chứa ký tự `{` `}` ngoài 3 placeholder (luồng Python cũ dùng `str.format`). Nội dung luật được truyền làm giá trị nên chứa ngoặc nhọn thoải mái.
 
 ## Prompt được lắp ráp như thế nào
 
-`ai_review.py` → `PromptBuilder` thực hiện:
+### Luồng chính — `build-prompt.sh` (Claude Code action)
 
-1. Đọc env `STACK` và `RULES_PATH` (truyền từ `action.yml` / workflow).
-2. Ghép **tất cả** file `.md` trong `scripts/stacks/<STACK>/` → `{coding_stack}`.
-3. Ghép **tất cả** file `.md` trong `scripts/rules/<RULES_PATH>/` → `{coding_rules}`.
-4. Chọn template theo `REVIEW_LANGUAGE`, thay các placeholder.
-5. **Diff lớn được chia nhỏ**: `DiffChunker` cắt theo ranh giới file, mỗi chunk ~40.000 ký tự, và review **từng chunk độc lập**. Vì vậy prompt phải luôn giả định model *chỉ thấy một phần diff* — tuyệt đối không phán "file không tồn tại" chỉ vì nó không nằm trong phần đang xem.
+1. Đọc env `STACK`, `RULES_PATH`, `REVIEW_LANGUAGE` từ `action.yml`.
+2. `{coding_stack}` = `stacks/core/*.md` → file `.md` trực tiếp trong các thư mục cha của `STACK` (stack lồng nhau như `nextjs/typescript`) → file `.md` trực tiếp trong `stacks/<STACK>/`.
+3. `{coding_rules}` = mọi file `.md` trong `rules/<RULES_PATH>/` (đệ quy).
+4. `{code_diff}` = câu hướng dẫn Claude tự lấy diff bằng `gh pr diff`; Claude có thể đọc file liên quan trong repo để xác minh trước khi báo lỗi.
+5. Thay placeholder bằng `str.replace` (python3), rồi nối thêm mục "Review Requirements" (inline comment + 1 comment tổng kết, không sửa code).
+
+### Luồng cũ — `scripts/reviewer/prompt_builder.py` (đang tạm dừng, `REVIEW_PAUSED = True`)
+
+Nạp stack/rules theo cùng thứ tự, thay placeholder bằng `str.format`, nhúng diff thật. Diff lớn được `DiffChunker` cắt theo file (~40.000 ký tự/chunk) và review **từng chunk độc lập** — template đã có hướng dẫn cho trường hợp "chỉ thấy diff".
 
 ## Template Variables
 
-| Placeholder      | Nguồn dữ liệu                                   | Vị trí trong template VI                     |
-| ---------------- | ----------------------------------------------- | -------------------------------------------- |
-| `{coding_stack}` | Các `.md` trong `scripts/stacks/<STACK>/`       | dưới `=== QUY TẮC & CHUẨN MỰC LẬP TRÌNH ===` |
-| `{coding_rules}` | Các `.md` trong `scripts/rules/<RULES_PATH>/`   | dưới `=== KIẾN TRÚC & LUẬT TRONG DỰ ÁN ===`  |
-| `{code_diff}`    | Diff (hoặc một chunk) của pull request           | dưới `=== CODE DIFF CẦN REVIEW ===`          |
+| Placeholder      | Nguồn                                                         |
+| ---------------- | ------------------------------------------------------------- |
+| `{coding_stack}` | `stacks/core/` + thư mục cha + `stacks/<STACK>/`              |
+| `{coding_rules}` | `rules/<RULES_PATH>/` (đệ quy)                                |
+| `{code_diff}`    | Luồng chính: hướng dẫn lấy diff · Luồng cũ: diff/chunk thật   |
 
-- `{coding_stack}` = persona + tiêu chí ở tầng **công nghệ/stack** (vd `expressjs`, `nextjs/typescript`, `js-ads`).
-- `{coding_rules}` = quy tắc **kiến trúc đặc thù dự án** (vd `pubfuture-pt`, `pubstar-ios`).
-- Hai nguồn này **bổ sung** cho nhau: stack = "viết đúng ngôn ngữ", rules = "viết đúng dự án".
+- `stacks/` = luật **chung** theo công nghệ, dùng lại cho nhiều dự án (CORE + stack).
+- `rules/` = luật **riêng** của dự án: cấu trúc, ranh giới tầng, luật có nhãn, nợ kỹ thuật đã biết. Luật dự án được ưu tiên hơn luật chung.
 
 ## Cấu trúc template
 
 ```
-[Định nghĩa vai trò — senior software engineer]
-
-=== QUY TẮC & CHUẨN MỰC LẬP TRÌNH ===
-{coding_stack}
-
-=== KIẾN TRÚC & LUẬT TRONG DỰ ÁN ===
-{coding_rules}
-
-=== NHIỆM VỤ CỦA BẠN ===
-[Các nhóm tiêu chí review — trung lập với stack]
-
-[Yêu cầu về format & mức độ nghiêm trọng]
-
-[Ví dụ format với emoji — dùng placeholder chung, không gắn ngôn ngữ cụ thể]
-
-=== CODE DIFF CẦN REVIEW ===
-{code_diff}
+[Mục tiêu: chính xác, ít nhiễu, hành động được]
+=== QUY TẮC CHUNG ===            {coding_stack}
+=== KIẾN TRÚC & LUẬT RIÊNG ===   {coding_rules}
+=== THỨ TỰ ƯU TIÊN ===           dự án > chung > kinh nghiệm (chỉ bug/bảo mật)
+=== PHẠM VI REVIEW ===           dòng +, dòng - (chỉ khi xoá cơ chế bảo vệ), bỏ file sinh tự động
+=== XÁC MINH TRƯỚC KHI KẾT LUẬN === có công cụ → đọc file; chỉ có diff → không suy đoán "thiếu"
+=== NHỮNG GÌ CẦN TÌM ===         bug → bảo mật → kiến trúc → xử lý lỗi → quy ước có nêu rõ
+=== KHÔNG BÁO ===                context, nợ kỹ thuật, format, điều kiện "CHỈ áp dụng khi" không thoả
+=== MỨC ĐỘ ===                   theo nhãn [chặn merge]/[cảnh báo]/[nit]
+=== TỰ KIỂM TRA ===              3 câu hỏi cho từng phát hiện
+=== YÊU CẦU ĐẦU RA ===           format + ví dụ
+=== CODE DIFF ===                {code_diff}
 ```
 
-## Viết prompt sao cho AI review TỐT hơn
+## Viết luật sao cho AI review tốt và ít báo sai
 
-Đây là phần quan trọng nhất. Mục tiêu: **đúng, ít nhiễu, và hành động được**. Khi chỉnh template, giữ các nguyên tắc sau:
-
-**1. Ưu tiên độ chính xác hơn số lượng (giảm false-positive).**
-- Yêu cầu model chỉ báo lỗi khi **quan sát được trực tiếp trong diff**, không suy đoán. Với nghi ngờ chưa chắc, hạ xuống mức 💡 gợi ý thay vì 🔴.
-- Nêu rõ mã cũ không nằm trong diff có thể chứa ngữ cảnh cần thiết → không được kết luận thiếu sót chỉ vì không thấy.
-
-**2. Bám vào diff, tôn trọng chunk.**
-- Nhắc lại (đã có, cần giữ): "CHỈ review code trong diff", "KHÔNG nói file không tồn tại".
-- Vì review theo chunk, tránh yêu cầu model thống kê/tổng hợp toàn PR trong một lần.
-
-**3. Phân mức nghiêm trọng nhất quán.**
-- 🔴 Critical = bug chắc chắn, lỗ hổng bảo mật, vi phạm kiến trúc cứng, có thể gây hỏng runtime.
-- ⚠️ Warning = rủi ro thật nhưng không chắc chắn hỏng / lệch quy ước quan trọng.
-- 💡 Suggestion = chất lượng, đặt tên, tái sử dụng.
-- Ép **liệt kê theo thứ tự 🔴 → ⚠️ → 💡** và **gom nhóm cùng loại lỗi** để dễ đọc.
-
-**4. Actionable.** Mỗi phát hiện phải có: `file:line`, mô tả ngắn *vì sao sai*, và `→ Fix/Suggestion` cụ thể (kèm ví dụ code khi hữu ích).
-
-**5. Định hướng bằng dữ liệu nạp động, không hardcode vào thân prompt.**
-- Muốn AI bắt lỗi đặc thù công nghệ mới → thêm/sửa file trong `scripts/stacks/` hoặc `scripts/rules/`, **đừng** nhồi vào template (template dùng chung mọi dự án).
-- Trong file stack/rules, đánh dấu rõ mức độ (vd "**Chặn merge**", "**Cảnh báo**", "nit") để model ánh xạ đúng sang emoji.
-
-**6. Chống nhiễu.** Cho phép model kết luận sạch: nếu không có lỗi, trả đúng câu "✅ ..." thay vì bịa vấn đề để có gì đó báo cáo.
-
-**7. Ngôn ngữ đầu ra.** Ràng buộc trả lời hoàn toàn bằng đúng một ngôn ngữ (VI hoặc EN) khớp với template đang dùng.
+1. **Gắn nhãn cho từng luật**: `[chặn merge]` (🔴) chỉ cho lỗi chắc chắn gây hỏng/bảo mật/vi phạm kiến trúc cứng; `[cảnh báo]` (⚠️); `[nit]` (💡). Dòng không nhãn là mô tả, AI không dùng để báo lỗi.
+2. **Ghi điều kiện**: luật chỉ đúng trong hoàn cảnh nhất định thì viết "CHỈ áp dụng khi ...", ví dụ "CHỈ khi diff có `package.json`".
+3. **Không yêu cầu "thiếu X" mơ hồ**: ghi rõ "CHỈ báo khi xác minh được" hoặc "dạng câu hỏi" cho các mục như `.env.example`, đăng ký route/job, key i18n, test.
+4. **Mục "Ngoại lệ / nợ kỹ thuật đã biết"** trong mỗi `rules/<project>/ARCHITECTURE_RULES.md`: liệt kê chỗ code cũ sai có chủ đích. Mỗi lần dev đánh dấu một comment là báo sai lặp lại, thêm mẫu đó vào đây.
+5. **Mục "Nguyên tắc khi AI sửa/sinh code"** là hướng dẫn sinh code, AI không dùng để báo lỗi review.
+6. **Không nhập vai trong file luật** ("Bạn là ..."): file luật chỉ chứa danh sách luật; vai trò nằm ở template.
+7. Muốn AI bắt thêm loại lỗi → sửa `stacks/` hoặc `rules/`, không nhồi vào template (template dùng chung mọi dự án).
 
 ## Cách tùy chỉnh
 
-1. **Sửa template có sẵn**: chỉnh trực tiếp file `.txt` — nhớ đồng bộ cả VI và EN.
-2. **Thêm ngôn ngữ mới**: tạo `review_prompt_ja.txt` và cập nhật `ai_review.py`:
+1. **Sửa template**: chỉnh file `.txt`, nhớ đồng bộ VI và EN, không thêm `{` `}`.
+2. **Thêm stack**: tạo `stacks/<tên>/<file>.md`; biến thể TypeScript đặt trong `stacks/<tên>/typescript/` (thư mục cha được nạp kèm).
+3. **Thêm dự án**: tạo `rules/<project>/ARCHITECTURE_RULES.md` theo khung: 1. Tổng quan · 2. Cấu trúc · 3. Luật review (có nhãn) · 4. Quy ước đặt tên · 5. Ngoại lệ / nợ kỹ thuật · 6. Nguyên tắc khi AI sửa/sinh code.
+4. **Kiểm tra prompt cục bộ**:
 
-```python
-def load_prompt_template(language: str) -> str:
-    if language == "english":
-        prompt_file = "review_prompt_en.txt"
-    elif language == "japanese":
-        prompt_file = "review_prompt_ja.txt"
-    else:  # Vietnamese (default)
-        prompt_file = "review_prompt_vi.txt"
-    ...
+```bash
+ACTION_PATH=$(pwd) STACK=nextjs/typescript RULES_PATH=base-frontend \
+REVIEW_LANGUAGE=vietnamese GITHUB_OUTPUT=/tmp/out \
+bash scripts/system-prompts/build-prompt.sh && grep '^Source:' /tmp/out
 ```
-
-> Lưu ý: template được thiết kế dùng chung cho MỌI stack/rule. Sửa thân prompt ảnh hưởng **tất cả** dự án đang dùng bot — hãy giữ nó trung lập, chỉ chứa tiêu chí và format.
-
-## Lợi ích của cách tách template
-
-- ✅ **Dễ đọc**: text thuần, không phải escape chuỗi Python.
-- ✅ **Dễ sửa**: không cần đụng code Python để đổi prompt.
-- ✅ **Version control**: theo dõi thay đổi prompt tách biệt với logic.
-- ✅ **Cộng tác**: người không phải dev cũng cập nhật được.
-- ✅ **Thử nghiệm**: dễ so sánh các phiên bản prompt khác nhau.

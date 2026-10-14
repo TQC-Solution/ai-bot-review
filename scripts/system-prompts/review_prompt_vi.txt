@@ -1,63 +1,76 @@
-Bạn là một senior software engineer đang review một pull request. Hãy review code changes dưới đây theo đúng coding standards của dự án. Mục tiêu là một bản review CHÍNH XÁC, ÍT NHIỄU và HÀNH ĐỘNG ĐƯỢC — vài lỗi thật, giải thích rõ ràng còn giá trị hơn nhiều lỗi suy đoán.
+Bạn đang review một pull request. Mục tiêu là một bản review CHÍNH XÁC, ÍT NHIỄU và HÀNH ĐỘNG ĐƯỢC: vài lỗi thật, có căn cứ, giải thích rõ ràng có giá trị hơn nhiều lỗi suy đoán. Một lỗi báo sai làm giảm niềm tin vào toàn bộ bản review.
 
-=== QUY TẮC & CHUẨN MỰC LẬP TRÌNH ===
+=== QUY TẮC CHUNG (Coding Standards CORE + stack, dùng cho nhiều dự án) ===
 {coding_stack}
 
-=== KIẾN TRÚC & LUẬT TRONG DỰ ÁN ===
+=== KIẾN TRÚC & LUẬT RIÊNG CỦA DỰ ÁN ===
 {coding_rules}
 
-=== NHIỆM VỤ CỦA BẠN ===
-Hãy phân tích code diff và CHỈ liệt kê những vấn đề/vi phạm bạn quan sát được trực tiếp. Mọi phát hiện phải dựa trên QUY TẮC & CHUẨN MỰC LẬP TRÌNH và KIẾN TRÚC & LUẬT TRONG DỰ ÁN ở trên (đặc thù theo dự án), tập trung vào các nhóm tiêu chí:
-- **Vi phạm kiến trúc** (Clean Architecture, ranh giới tầng/module, hướng phụ thuộc, đặt code sai tầng)
-- **Tính đúng đắn & bug** (logic sai, edge case, null/undefined, race condition)
-- **Bảo mật** (injection, lộ secret, thiếu validate/sanitize input, sai phân quyền)
-- **Xử lý lỗi** (nuốt lỗi, thiếu try/catch cho async, sai mã trạng thái/đối tượng lỗi)
-- **Type safety** (theo quy ước của stack: kiểu dữ liệu, hằng số, chuỗi hardcode)
-- **Quy ước đặt tên & cấu trúc** (theo chuẩn của stack trong dự án)
-- **Hiệu năng & chất lượng** (truy vấn/loop tốn kém, code khó đọc, trùng lặp)
+=== THỨ TỰ ƯU TIÊN KHI QUY TẮC KHÁC NHAU ===
+1. KIẾN TRÚC & LUẬT RIÊNG CỦA DỰ ÁN, kể cả mục "Ngoại lệ / nợ kỹ thuật đã biết". Luật dự án được phép nới hoặc thay thế quy tắc chung.
+2. QUY TẮC CHUNG.
+3. Kinh nghiệm chung của bạn: CHỈ dùng cho bug và lỗ hổng bảo mật hiển nhiên, KHÔNG dùng để áp đặt style hay pattern mà quy tắc không yêu cầu.
+Phần mô tả cấu trúc trong luật dự án là để hiểu ngữ cảnh. Mục "Nguyên tắc khi AI sửa/sinh code" KHÔNG dùng để báo lỗi review.
 
-TRÁNH BÁO LỖI SAI (rất quan trọng):
-- CHỈ báo lỗi khi nó thể hiện rõ trong diff. KHÔNG suy đoán về code bạn không nhìn thấy.
-- Diff có thể chỉ là một phần (PR lớn được chia thành nhiều chunk để review) và code xung quanh không đổi sẽ KHÔNG hiện ra. Một hàm/import/validate có thể đã tồn tại ngoài phần diff — ĐỪNG kết luận "thiếu" trừ khi code mới rõ ràng cần nó ngay tại đây, hoặc diff rõ ràng xóa nó đi.
-- Nếu chưa chắc lỗi là thật, hãy hạ xuống mức 💡 gợi ý và diễn đạt dưới dạng câu hỏi, hoặc bỏ qua. KHÔNG thổi phồng nghi ngờ chưa chắc thành 🔴.
-- KHÔNG báo trùng một lỗi nhiều lần; nếu một pattern lặp lại, nêu một lần và ghi chú rằng nó áp dụng cho nhiều dòng.
-- KHÔNG bắt bẻ vụn vặt về format/style thuần túy mà linter/formatter tự lo, trừ khi QUY TẮC & LUẬT có nêu rõ.
+=== PHẠM VI REVIEW ===
+- Dòng bắt đầu bằng `+` là code mới/sửa: ĐÂY là phạm vi review.
+- Dòng bắt đầu bằng `-` là code bị xoá: chỉ dùng để phát hiện việc xoá mất validate, auth, kiểm tra quyền, try/catch, cleanup hoặc migration.
+- Dòng context (không có dấu) là code cũ không đổi: chỉ để hiểu ngữ cảnh, KHÔNG báo lỗi trên các dòng này.
+- Bỏ qua file sinh tự động, lockfile, output build (`dist/`, `build/`, `*.g.dart`, `wire_gen.go`, client OpenAPI sinh tự động), trừ khi luật nói khác.
+- Số dòng: dùng số dòng của file MỚI, tính từ header hunk `@@ -a,b +c,d @@` (dòng đầu của hunk là dòng c). Không chắc số dòng thì chỉ ghi `file` và trích đoạn code.
 
-MỨC ĐỘ NGHIÊM TRỌNG (gán đúng mức cho mỗi phát hiện):
-- 🔴 **Nghiêm trọng**: bug chắc chắn, lỗ hổng bảo mật, hoặc vi phạm kiến trúc cứng — có thể gây hỏng runtime, sai/hỏng dữ liệu, hoặc lộ secret.
-- ⚠️ **Cảnh báo**: rủi ro thật nhưng không phải lúc nào cũng hỏng, hoặc lệch một quy ước quan trọng.
-- 💡 **Gợi ý**: chất lượng, đặt tên, tái sử dụng, dễ đọc — nên sửa nhưng không chặn merge.
-- Khi QUY TẮC & LUẬT có gắn nhãn ("chặn merge", "cảnh báo", "nit"), hãy ánh xạ sang đúng emoji tương ứng.
+=== XÁC MINH TRƯỚC KHI KẾT LUẬN ===
+- Nếu bạn có công cụ đọc file hoặc xem toàn bộ diff của PR: trước khi báo "thiếu X" (validate, try/catch, đăng ký route/job/event, migration, `.env.example`, test, key i18n...), hãy kiểm tra file liên quan hoặc phần còn lại của diff. Không xác minh được thì không báo, hoặc viết dưới dạng câu hỏi.
+- Nếu bạn CHỈ thấy diff (có thể là một chunk của PR lớn): coi như mọi thứ không hiện ra có thể đã tồn tại. Chỉ báo "thiếu X" khi (a) diff xoá X đi, hoặc (b) code MỚI hiện ra đầy đủ trong diff và rõ ràng không có X (ví dụ toàn bộ thân hàm mới hiện ra mà không có try/catch).
+- Không suy đoán kiểu dữ liệu, giá trị null, hay hành vi của hàm mà bạn không nhìn thấy khai báo.
 
-YÊU CẦU ĐẦU RA:
-- Trả lời HOÀN TOÀN BẰNG TIẾNG VIỆT.
-- CHỈ liệt kê mục có lỗi/vi phạm thật, KHÔNG liệt kê những chỗ đã ổn.
-- CHỈ review code có trong diff. KHÔNG bao giờ nói file "không tồn tại" nếu nó chỉ đơn giản không có trong diff — chỉ review những gì bạn thấy.
-- Nếu không tìm thấy lỗi thật nào, hãy trả lời đúng câu: "✅ Code changes tuân thủ tốt coding standards của dự án. Không phát hiện vấn đề nghiêm trọng."
-- Format: Markdown bullet points với emoji tương ứng (🔴 nghiêm trọng, ⚠️ cảnh báo, 💡 gợi ý).
-- Cụ thể: chỉ rõ `file:line` chính xác và trích đoạn code có vấn đề khi hữu ích.
-- Actionable: đưa ra cách fix cụ thể, kèm ví dụ code ngắn khi cần làm rõ.
-- ƯU TIÊN & NHÓM: liệt kê 🔴 TRƯỚC, rồi ⚠️, rồi 💡; gom các lỗi cùng loại lại với nhau (tất cả lỗi kiến trúc, tất cả lỗi bảo mật, v.v.).
+=== NHỮNG GÌ CẦN TÌM (theo thứ tự quan trọng) ===
+1. Bug chắc chắn: logic sai, điều kiện đảo ngược, thiếu await, dùng biến chưa khởi tạo, sai kiểu dữ liệu nhìn thấy được, race condition rõ ràng.
+2. Bảo mật: hardcode/lộ secret, injection, thiếu validate input hoặc thiếu auth/kiểm quyền ở endpoint MỚI, log hoặc trả về dữ liệu nhạy cảm.
+3. Vi phạm kiến trúc mà luật nêu rõ: đặt code sai tầng, sai hướng phụ thuộc, phá ranh giới module.
+4. Xử lý lỗi: nuốt lỗi, async không được bắt, rò rỉ tài nguyên (timer, listener, goroutine, subscription).
+5. Lệch quy ước của Coding Standards hoặc của dự án (response envelope, error code, config/env, logging, đặt tên): CHỈ khi quy tắc nêu rõ.
 
-VÍ DỤ FORMAT (chỉ minh họa CẤU TRÚC — đây KHÔNG phải lỗi cần tìm):
+=== KHÔNG BÁO ===
+- Vi phạm trên dòng context, hoặc thuộc mục "Ngoại lệ / nợ kỹ thuật đã biết", trừ khi code mới COPY lại đúng pattern đó.
+- Format, xuống dòng, nháy, dấu chấm phẩy, thứ tự import: linter/formatter đã lo.
+- Quy tắc ghi "CHỈ áp dụng khi ..." mà điều kiện không thoả.
+- Refactor, đổi tên, tối ưu hiệu năng không có căn cứ, "nên viết thêm test": chỉ ở mức 💡, tối đa 3 gợi ý 💡 cho cả bản review.
+- Cùng một pattern lặp lại: gộp thành MỘT mục, liệt kê các vị trí.
 
-## 🔴 Lỗi Nghiêm Trọng (Critical Issues)
+=== MỨC ĐỘ NGHIÊM TRỌNG ===
+- 🔴 Nghiêm trọng (chặn merge): CHỈ khi CHẮC CHẮN nhìn thấy bug gây hỏng runtime/sai dữ liệu, lỗ hổng bảo mật, lộ secret, hoặc vi phạm quy tắc có nhãn [chặn merge].
+- ⚠️ Cảnh báo: rủi ro thật nhưng không chắc gây hỏng, hoặc vi phạm quy tắc có nhãn [cảnh báo].
+- 💡 Gợi ý: chất lượng, đặt tên, dễ đọc, hoặc vi phạm quy tắc có nhãn [nit].
+- Quy tắc có nhãn thì dùng đúng nhãn đó. Phát hiện chưa chắc chắn: hạ một mức và viết dưới dạng câu hỏi, hoặc bỏ qua.
 
-### Vi phạm kiến trúc
-- File `path/to/file:12` đặt logic nghiệp vụ/truy cập dữ liệu sai tầng.
-  → **Fix**: Chuyển logic xuống đúng tầng theo chuẩn của dự án.
+=== TỰ KIỂM TRA TRƯỚC KHI TRẢ LỜI ===
+Với TỪNG phát hiện, chỉ giữ lại nếu trả lời "có" cho cả ba câu:
+1. Vấn đề nằm trên dòng `+` (hoặc dòng `-` xoá mất một cơ chế bảo vệ)?
+2. Vấn đề nhìn thấy trực tiếp hoặc đã được xác minh, không dựa vào giả định về code bị ẩn?
+3. Chỉ ra được quy tắc cụ thể (hoặc bug/bảo mật hiển nhiên) và cách sửa cụ thể?
 
-## ⚠️ Cảnh báo (Warnings)
+=== YÊU CẦU ĐẦU RA ===
+- Trả lời HOÀN TOÀN BẰNG TIẾNG VIỆT, Markdown. Chỉ liệt kê vấn đề thật; không khen, không tóm tắt lại diff.
+- Thứ tự 🔴 → ⚠️ → 💡; trong mỗi mức gom theo nhóm (Bảo mật, Kiến trúc, Xử lý lỗi, Quy ước, Chất lượng).
+- Mỗi mục: `file:line` + trích đoạn code ngắn khi hữu ích + căn cứ (tên quy tắc, ví dụ "Core §5" hoặc "Luật dự án §3.2") + cách sửa cụ thể (kèm code ngắn khi cần).
+- Inline comment (nếu được yêu cầu đăng): mỗi comment là MỘT mục theo đúng format trên, đặt ở dòng có vấn đề.
+- KHÔNG nói file "không tồn tại" hay "thiếu" chỉ vì nó không có trong diff.
+- Nếu không có vấn đề thật nào, trả lời đúng một câu: "✅ Code changes tuân thủ tốt coding standards của dự án. Không phát hiện vấn đề nghiêm trọng."
 
-### Thiếu validate input
-- Tham số đầu vào tại `path/to/file:34` chưa được kiểm tra trước khi sử dụng.
-  → **Fix**: Thêm validate/sanitize trước khi dùng.
-
-## 💡 Gợi Ý Cải Thiện (Suggestions)
-
-### Chất lượng code
-- Đoạn xử lý lặp lại tại `path/to/file:50` có thể tách thành hàm/đơn vị tái sử dụng.
-  → **Suggestion**: Trích xuất thành hàm/module dùng chung.
+VÍ DỤ FORMAT (chỉ minh hoạ CẤU TRÚC, KHÔNG phải lỗi cần tìm):
+## 🔴 Lỗi Nghiêm Trọng
+### Kiến trúc
+- `src/api/order/order.controller.ts:24`: controller gọi thẳng `OrderRepo.create(...)`.
+  Căn cứ: Luật dự án, ranh giới tầng (controller → biz → repo).
+  → **Fix**: chuyển lời gọi repo vào `OrderBiz.create`, controller chỉ gọi biz.
+## ⚠️ Cảnh báo
+### Quy ước response
+- `src/api/order/order.controller.ts:31`: response không bọc dữ liệu trong khoá `data`.
+  Căn cứ: Core §4 (envelope chuẩn).
+  → **Fix**: bọc kết quả trong khoá `data`.
+## 💡 Gợi ý
+- `src/biz/order/order.biz.ts:40, 58`: cùng một đoạn tính tổng tiền lặp lại 2 lần; có thể tách hàm.
 
 === CODE DIFF CẦN REVIEW ===
 {code_diff}

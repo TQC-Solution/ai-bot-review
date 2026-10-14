@@ -1,93 +1,72 @@
-# Identity Graph Backend — Architecture Diagram
+# Identity Graph Backend (Go) — Kiến trúc & luật review
 
-Tài liệu này mô tả cấu trúc và quy tắc của dự án `identity-graph-backend-go` (Go).
-Mục đích: Hỗ trợ AI và Developer hiểu rõ vị trí và trách nhiệm từng thành phần để review, maintain và refactor an toàn.
+Tài liệu mô tả cấu trúc, quy ước và luật review của `identity-graph-backend-go`. Căn cứ: 📐 Coding Standards — Backend Go/Gin v1.0 (luật dưới đây thay thế các mục Go chung khi khác nhau, ví dụ DB là PostgreSQL thay vì Mongo).
+Nhãn mức độ: [chặn merge] = 🔴 · [cảnh báo] = ⚠️ · [nit] = 💡. Quy tắc không có nhãn là mô tả, không dùng để báo lỗi.
 
-## Cấu trúc tổng quan
+## 1. Tổng quan
+**JS SDK** (`IdtSendUserSummary`) → **Cloudflare Worker** (CORS, forward) → **`POST /v1/user-idt`** → `Collect()` parse signals → pipeline 4 bước → cập nhật DB → trả `{ node_id, action, step }`.
+Mục tiêu: cùng một người dùng thực luôn nhận cùng `node_id` dù đổi browser, xoá cookie hay vào từ site khác. Traffic lớn, yêu cầu high availability, low latency.
+Stack: **Gin · pgxpool (PostgreSQL, DB `identity_graph`) · Redis · Google Wire · logrus**.
 
-Nhận signals từ JS SDK (qua Cloudflare Worker), chạy pipeline các bước để resolve ra `node_id` ổn định đại diện cho cùng một người dùng/thiết bị. Thiết kế cho traffic lớn, yêu cầu high availability và low latency.
-
-### 1. Entry point & DI
-* `cmd/api/`: Khởi động server, load env, chạy migration. Wire DI assembles `Config → pgxpool + Redis → IdentityService → HTTP handlers`. Sau mỗi lần đổi provider, chạy `wire ./cmd/api/`.
-* `cmd/worker/`: Process riêng cho background jobs (cron-style). Không chạy migration. Jobs guard bằng Postgres advisory lock để tránh double-run khi scale.
-
-### 2. HTTP Layer (`internal/app/api/`)
-* `router/`: Đăng ký routes, mount middleware.
-* `controller/`: Parse request → gọi service → trả response. Handler phải mỏng, không có business logic.
-* `middleware/`: Auth, CORS, logging, panic recovery.
-* `binding/`: Bind và validate request body/header.
-
-### 3. Service Layer (`internal/service/`)
-Thin layer nối `internal/identity/` với HTTP handlers. Không query DB trực tiếp, không chứa scoring logic.
-
-### 4. Identity Domain (`internal/identity/`)
-Toàn bộ logic định danh tập trung ở đây:
-* `collector.go`: Parse JSON body + headers thành `Signals`.
-* `signal.go`: `Signals` struct, `SignalValueMap()`, signal weights + TTLs, `resolveTemporaryID()`.
-* `resolver.go`: Orchestrate pipeline 4 bước, dispatch audit event bất đồng bộ.
-* `step_same_person.go` → `step_cross_device.go`: 4 bước pipeline.
-* `repository.go`: Toàn bộ DB access.
-* `cache.go`: Redis helpers — key pattern `idt:sig:{type}:{value}`.
-* `scoring_table.go`: `ComputeScore(matched, fastOnly)` → (score, conf).
-* `cleanup_job.go`: Xoá signals hết hạn theo batch.
-
-### 5. Infrastructure & Config
-* `internal/infrastructure/`: Tạo `pgxpool.Pool`, `redis.Client`. Migration tự chạy lúc startup.
-* `internal/job/`: `Job` interface, `Scheduler`, `PgLocker` — framework cho background jobs.
-* `internal/config/config.go`: Đọc toàn bộ biến môi trường qua `caarlos0/env`.
-* `internal/common/`: `APIError`, `APIResponse` dùng chung.
-
-
-# Identity Graph Backend — Architectural Guidelines & Context cho AI
-
-## 1. Tổng quan dự án
-
-**JS SDK** (`IdtSendUserSummary`) → **Cloudflare Worker** (CORS, forward request) → **`POST /v1/user-idt`** → `Collect()` parse signals → pipeline 4 bước → update DB → trả về `{ node_id, action, step }`.
-
-Mục tiêu: cùng một người dùng thực luôn nhận về cùng `node_id` dù đổi browser, xóa cookie, hay vào từ site khác.
-
-Stack: **Gin · pgxpool (PostgreSQL) · Redis · Google Wire · logrus**.
-
-## 2. Pipeline 4 bước
-
-Bước nào match trước thì short-circuit, không chạy tiếp:
-
+### Pipeline 4 bước (bước nào match thì short-circuit)
 | Bước | File | Cơ chế | Kết quả |
-|------|------|---------|---------|
-| 1 — Same Person | `step_same_person.go` | `hashed_email` → Redis → Postgres | MERGE |
-| 2 — Same Site | `step_same_site.go` | `publisher_uuid` → `TemporaryID` → Redis → Postgres | MERGE |
-| 3 — Cross Site | `step_cross_site.go` | Fast scoring → Hard scoring; ≥80/75 merge, ≥40/60 link | MERGE / LINK |
-| 4 — Cross Device | `step_cross_device.go` | Fallback | CREATE |
+|---|---|---|---|
+| 1 Same Person | `step_same_person.go` | `hashed_email` → Redis → Postgres | MERGE |
+| 2 Same Site | `step_same_site.go` | `publisher_uuid` → `TemporaryID` → Redis → Postgres | MERGE |
+| 3 Cross Site | `step_cross_site.go` | Fast scoring → Hard scoring; ≥80/75 merge, ≥40/60 link | MERGE / LINK |
+| 4 Cross Device | `step_cross_device.go` | Fallback | CREATE |
 
-**TemporaryID** priority: `server_cookie_id > third_cookie_id > ppid_cookie > indexed_db_id > local_storage_id`
+`TemporaryID` ưu tiên: `server_cookie_id > third_cookie_id > ppid_cookie > indexed_db_id > local_storage_id`.
 
-## 3. Quy tắc làm việc & dependency
+## 2. Cấu trúc thư mục & trách nhiệm
+- `cmd/api/`: khởi động server, load env, chạy migration; Wire: `Config → pgxpool + Redis → IdentityService → HTTP handlers`.
+- `cmd/worker/`: background job kiểu cron; không chạy migration; job guard bằng Postgres advisory lock.
+- `internal/app/api/`: `router/`, `controller/` (mỏng), `middleware/` (auth, CORS, logging, recovery), `binding/`.
+- `internal/service/`: lớp mỏng nối `identity/` với handler; không query DB, không chứa scoring.
+- `internal/identity/`: toàn bộ logic định danh — `collector.go` (body + header → `Signals`), `signal.go` (`SignalValueMap()`, `signalWeightsV2`, `signalTTLDaysV2`, `resolveTemporaryID()`), `resolver.go` (orchestrate pipeline, audit event async), `step_*.go`, `repository.go` (toàn bộ DB access), `cache.go` (key `idt:sig:{type}:{value}`), `scoring_table.go` (`ComputeScore`), `cleanup_job.go`.
+- `internal/infrastructure/` (pgxpool, redis, migration), `internal/job/` (`Job`, `Scheduler`, `PgLocker`), `internal/config/config.go` (`caarlos0/env`), `internal/common/` (`APIError`, `APIResponse`).
 
-1. **Giữ đúng tầng:** `cmd/ → app/api/ → service/ → identity/ → infrastructure/`. Controller không query DB trực tiếp. `identity/` không import `gin` (ngoại trừ `collector.go`).
-2. **Hot path ≤ 80ms:** Mọi thay đổi trên `POST /v1/user-idt` phải giữ end-to-end ≤ 80ms.
-3. **Redis L1 trước:** Check cache `idt:sig:{type}:{value}` trước khi hit Postgres. Cache miss → Postgres → warm Redis.
-4. **Không full-table scan:** Query hot path phải dùng index — O(1) hoặc O(log N), không unbounded fan-out.
-5. **Audit event ngoài transaction:** Dispatch qua channel, flush async. Lỗi chỉ `log.Warn`, không fail request.
-6. **Signal mới — 3 chỗ trong `signal.go`:** `SignalValueMap()`, `signalWeightsV2`, `signalTTLDaysV2`. Không hardcode weight/TTL ngoài maps này.
-7. **Connection pooling:** Luôn dùng `pgxpool.Pool` từ Wire. Không `pgx.Connect()` ad-hoc.
-8. **Config:** Không hardcode URL, DSN, credential. Đọc từ `internal/config/config.go`. DB là `identity_graph`.
-9. **Privacy:** Chỉ lưu hashed/pseudonymized ID. Không log raw payload có PII.
-10. **Redis optional:** Degrade gracefully sang Postgres-only khi Redis unreachable — không panic.
+## 3. Luật review
+
+### 3.1. Ranh giới tầng — `cmd → app/api → service → identity → infrastructure`
+- [chặn merge] Controller hoặc `service/` query DB/Redis trực tiếp; SQL nằm ngoài `identity/repository.go` (hoặc file repository tương đương).
+- [chặn merge] `identity/` import `gin` (ngoại lệ duy nhất: `collector.go`).
+- [chặn merge] Tạo kết nối ad-hoc (`pgx.Connect`, `redis.NewClient`) thay vì dùng `pgxpool.Pool`/client từ Wire.
+- [chặn merge] Sửa tay `wire_gen.go`.
+- [cảnh báo] Scoring/logic định danh đặt ngoài `internal/identity/`.
+
+### 3.2. Hot path `POST /v1/user-idt` (≤ 80ms end-to-end)
+- [chặn merge] Query mới trên hot path không dùng index (full scan, `LIKE '%...'`, unbounded fan-out, N+1 trong vòng lặp).
+- [chặn merge] Ghi audit event đồng bộ trong transaction hoặc làm fail request khi audit lỗi (phải dispatch qua channel, lỗi chỉ `log.Warn`).
+- [cảnh báo] Bỏ bước Redis L1: tra Postgres trước khi check cache `idt:sig:{type}:{value}`; cache miss không warm lại Redis.
+- [cảnh báo] Thêm gọi mạng/IO đồng bộ mới trên hot path không có timeout.
+- [cảnh báo] Redis lỗi làm panic/fail request thay vì degrade sang Postgres-only.
+
+### 3.3. Pipeline & scoring
+- [chặn merge] Đổi thứ tự 4 bước hoặc logic short-circuit (deterministic trước, probabilistic sau) mà PR không ghi rõ lý do.
+- [cảnh báo] Đổi ngưỡng scoring (≥80/75 merge, ≥40/60 link), weight hoặc TTL mà PR không ghi rõ yêu cầu.
+- [cảnh báo] Signal mới không thêm đủ 3 chỗ trong `signal.go`: `SignalValueMap()`, `signalWeightsV2`, `signalTTLDaysV2`; hardcode weight/TTL ngoài các map này.
+- [cảnh báo] Đổi thứ tự ưu tiên `TemporaryID`.
+
+### 3.4. Contract & dữ liệu
+- [chặn merge] Đổi shape response `{ node_id, action, step }` (contract với JS SDK).
+- [chặn merge] Lưu hoặc log raw PII/payload (email, IP thô, cookie id gốc khi chưa hash); chỉ lưu ID đã hash/pseudonymize.
+- [cảnh báo] Đổi schema bảng (`identity_nodes`, `identity_signals`...) mà không có migration mới.
+- [cảnh báo] Job mới trong worker không guard bằng advisory lock (`PgLocker`) khi có thể chạy nhiều instance.
+
+### 3.5. Lỗi, context, cấu hình
+- [chặn merge] `panic` trong logic nghiệp vụ/pipeline.
+- [cảnh báo] Lỗi không bọc `fmt.Errorf("...: %w", err)`; so sánh lỗi bằng chuỗi.
+- [cảnh báo] Hardcode URL, DSN, credential thay vì `internal/config/config.go`.
+- [cảnh báo] Hàm I/O mới không nhận `context.Context`; goroutine mới không dừng theo context.
 
 ## 4. Quy ước đặt tên
+- [nit] Package chữ thường; file `snake_case.go`; struct PascalCase; constructor `NewXxx`; bảng/cột DB `snake_case`.
 
-- **Package:** lowercase — `identity`, `service`, `config`, `infrastructure`.
-- **File:** `snake_case` — `step_same_person.go`, `scoring_table.go`.
-- **Struct:** PascalCase — `IdentityService`, `Resolver`, `Signals`, `ResolveResult`.
-- **Constructor:** prefix `New` — `NewResolver(repo)`, `NewIdentityService(pool, rdb)`.
-- **Error:** `fmt.Errorf("context: %w", err)`. Không panic trong business logic.
-- **DB:** `snake_case` — `identity_nodes`, `identity_signals`. Không đổi schema khi chưa có migration mới.
+## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
+- `collector.go` import `gin` là có chủ đích.
+- (Bổ sung tại đây các mẫu báo sai lặp lại mà dev đã xác nhận.)
 
-## 5. Nguyên tắc refactor cho AI
-
-- Bảo toàn response shape `{ node_id, action, step }` — contract với JS SDK.
-- Không đổi thứ tự pipeline hay logic short-circuit — deterministic trước, probabilistic sau.
-- Không sửa scoring thresholds (≥80/75 merge, ≥40/60 link) hay weights/TTLs khi chưa được yêu cầu.
-- Không thêm query không có index vào hot path.
+## 6. Nguyên tắc khi AI sửa/sinh code (không dùng để báo lỗi review)
 - Sau khi đổi Wire provider, chạy `wire ./cmd/api/` và commit `wire_gen.go`.
-- Ưu tiên thay đổi nhỏ, đúng tầng, dễ review.
+- Không sửa thresholds/weights/TTL khi chưa được yêu cầu. Ưu tiên thay đổi nhỏ, đúng tầng.

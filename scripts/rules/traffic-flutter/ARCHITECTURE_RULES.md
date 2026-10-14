@@ -1,204 +1,63 @@
-# Flutter Architecture Rules — traffic-flutter
+# Traffic Flutter — Kiến trúc & luật review
 
-Clean Architecture + GetX. Đây là quy tắc kiến trúc và coding để review code.
-**Nguyên tắc vàng: Domain là trung tâm, Domain KHÔNG phụ thuộc ai.**
+Tài liệu mô tả cấu trúc, quy ước và luật review của app Flutter team Traffic (Clean Architecture + GetX). Căn cứ: 📐 Coding Standards — Mobile App Flutter v1.0.
+Nhãn mức độ: [chặn merge] = 🔴 · [cảnh báo] = ⚠️ · [nit] = 💡. Quy tắc không có nhãn là mô tả, không dùng để báo lỗi.
+Nguyên tắc vàng: Domain là trung tâm, Domain KHÔNG phụ thuộc ai — `Presentation → Domain ← Data`.
 
----
-
-## 1. Dependency Rule
-
-```
-Presentation ──→ Domain ←── Data
-```
-
-- **Presentation** → import **Domain** ✅ | import **Data** ❌
-- **Data** → import **Domain** (interfaces) ✅
-- **Domain** → import **Data** / **Presentation** ❌ **VI PHẠM**
-
-Chiều mũi tên = chiều phụ thuộc. Domain không bao giờ import ra ngoài.
-
----
-
-## 2. Cấu trúc 3 Layer
-
+## 1. Cấu trúc 3 layer theo feature
 ```
 feature/
-├── domain/
-│   ├── entities/        # Business object thuần (KHÔNG fromJson/toJson)
-│   ├── repositories/    # Interface (abstract), trả về Entity
-│   └── usecases/        # Business logic phức tạp (optional cho CRUD đơn giản)
-├── data/
-│   ├── models/          # DTO, CHỈ JSON serialization
-│   ├── mappers/         # Convert Model ↔ Entity
-│   └── repositories/    # *_repository_impl.dart, map Model→Entity rồi return
-└── presentation/
-    ├── controllers/     # GetxController, state bằng .obs, dùng Entity
-    ├── screens/         # *_screen.dart
-    └── widgets/         # *_widget.dart, nhận Entity
+├── domain/       entities/ (business object thuần) · repositories/ (interface trả Entity) · usecases/ (tuỳ chọn cho CRUD đơn giản)
+├── data/         models/ (DTO, chỉ JSON) · mappers/ (Model ↔ Entity) · repositories/ (*_repository_impl.dart)
+└── presentation/ controllers/ (GetxController, state .obs, dùng Entity) · screens/ (*_screen.dart) · widgets/ (*_widget.dart)
 ```
+| Layer | Chứa | KHÔNG chứa | Trả về |
+|---|---|---|---|
+| Domain | business logic, interface | JSON, API, DB | Entity |
+| Data | JSON, API, DB, mapper | business logic | Entity (sau map) |
+| Presentation | UI, state | business logic, API trực tiếp | — |
 
-| Layer | Chứa | KHÔNG chứa | Return |
-|-------|------|------------|--------|
-| Domain | Business logic, interfaces | JSON, API, DB | Entities |
-| Data | JSON, API, DB, Mapper | Business logic | Entities (sau map) |
-| Presentation | UI, state | Business logic, API trực tiếp | — |
+- Entity: Dart thuần, `@immutable`, field `final`, có thể chứa computed getter/validation (ví dụ `fullImageUrl`, `isValid`).
+- Repository interface: `Future<Either<Failure, Entity>>` (dartz). Repository impl: gọi API → parse Model → map sang Entity → `Right(...)`; lỗi → `Left(ServerFailure(...))`.
+- Controller: gọi repository/usecase, `result.fold(...)`, feedback qua `CustomSnackBar`; `Loading.show()`/`Loading.hide()` trong `finally`.
+- Tiện ích: asset qua `flutter_gen` (`Assets.icons.*`); i18n `easy_localization` (`context.tr('settings.language')`, key snake_case phân cấp: `app.*`, `common.*`, `auth.*`, `settings.*`, `validation.*`, `messages.*`); style `context.textStyle.bodyLG.medium`, `AppValue.hSpaceSmall`, `AppColors.bgrPrimary`; điều hướng `Get.toNamed(RouterName.home)`; DI trong `service_locator.dart`; dòng tối đa 80 ký tự.
 
----
+## 2. Luật review
 
-## 3. Quy tắc mỗi Layer
+### 2.1. Dependency rule
+- [chặn merge] File trong `domain/` import `data/` hoặc `presentation/`.
+- [chặn merge] Presentation import `data/models/`, dùng Model, mapper hoặc `ApiService`.
+- [chặn merge] Controller gọi API trực tiếp thay vì repository/usecase.
 
-### Domain
-- Entity: pure Dart, `@immutable`, `final` fields, chứa **business logic** (computed getter, validation). **KHÔNG** `fromJson`/`toJson`.
-- Repository interface trả về `Future<Either<Failure, Entity>>`, không bao giờ Model.
+### 2.2. Domain & data
+- [cảnh báo] Entity có `fromJson`/`toJson`; field không `final`; thiếu `@immutable`.
+- [cảnh báo] Model có business logic/computed getter.
+- [cảnh báo] Repository impl trả Model thay vì Entity; map Model → Entity ngoài mapper.
+- [cảnh báo] Repository interface/impl mới không trả `Either<Failure, T>`; impl không bọc try/catch → `Left(Failure)`; throw raw exception ra UI.
 
-```dart
-@immutable
-class Novel {
-  const Novel({required this.id, required this.coverImage});
-  final String id;
-  final String coverImage;
+### 2.3. Presentation
+- [chặn merge] Controller tạo `TextEditingController`/`FocusNode`/subscription/`Timer` không giải phóng trong `onClose()`.
+- [cảnh báo] Controller không xử lý nhánh lỗi của `fold` (bỏ qua failure).
+- [cảnh báo] `Loading.show()` không có `Loading.hide()` trong `finally`.
+- [cảnh báo] Điều hướng bằng chuỗi literal thay vì `RouterName.*`.
+- [cảnh báo] Đăng ký dependency ngoài `service_locator.dart` hoặc tự `new` repository/usecase trong controller/widget.
+- [nit] Widget nhận Model hoặc dữ liệu thô thay vì Entity.
 
-  String get fullImageUrl =>
-      coverImage.startsWith('http') ? coverImage : '${AppUrl.urlImage}$coverImage';
-  bool get isValid => id.isNotEmpty;
-}
+### 2.4. Coding standards
+- [cảnh báo] Hardcode asset path (`'assets/...'`) thay vì `Assets.*`.
+- [cảnh báo] Text hiển thị hardcode thay vì `context.tr(...)`; key i18n mới không thêm đủ các file locale — CHỈ báo khi xác minh được.
+- [cảnh báo] `Color(0x...)`/`Colors.*`, `TextStyle(...)` rời, `SizedBox` với số tuỳ ý thay vì `AppColors`/`context.textStyle`/`AppValue`.
+- [cảnh báo] `print()` trong code; log token/PII; lưu token bằng SharedPreferences/Hive thay vì secure storage.
+- [nit] File/class/method không theo quy ước §3.
 
-abstract class HomeRepository {
-  Future<Either<Failure, List<Novel>>> getHotNovels({int? page});
-}
-```
+## 3. Quy ước đặt tên
+- File snake_case: `*_screen.dart`, `*_controller.dart`, `*_widget.dart`, `dialog_*.dart`, `*_entity.dart`, `*_model.dart`/`*_response.dart`, `*_usecase.dart`, `*_repository.dart`/`*_repository_impl.dart`, `*_mapper.dart`.
+- Class PascalCase (`SettingScreen`, `SettingController`, `UserModel`, `SettingRepositoryImpl`); biến/method camelCase, method bắt đầu bằng động từ (`onTapLanguage()`, `updateUserStatus()`); private có `_`.
 
-### Data
-- Model: CHỈ `fromJson`/`toJson`. **KHÔNG** business logic, computed getter.
-- Mapper: cầu nối bắt buộc, convert Model → Entity (và ngược lại nếu cần).
-- Repository impl: gọi API → parse Model → **map sang Entity** → return Entity.
+## 4. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
+- Usecase là tuỳ chọn cho CRUD đơn giản: KHÔNG báo controller gọi repository trực tiếp khi feature không có usecase.
+- (Bổ sung tại đây các mẫu báo sai lặp lại mà dev đã xác nhận.)
 
-```dart
-class HomeRepositoryImpl implements HomeRepository {
-  HomeRepositoryImpl(this._api);
-  final ApiService _api;
-
-  @override
-  Future<Either<Failure, List<Novel>>> getHotNovels({int? page}) async {
-    try {
-      final res = await _api.post(AppUrl.hotNovels, data: {'page': page});
-      if (res['success'] == true) {
-        final models = NovelModel.fromJsonList(res['data']);
-        return Right(NovelMapper.toEntityList(models)); // map trước khi return
-      }
-      return Left(ServerFailure(message: res['message']));
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
-}
-```
-
-### Presentation
-- Controller import Domain, dùng Entity với `.obs`, gọi repository/usecase — **KHÔNG** gọi API trực tiếp, không dùng Model, không mapper.
-- Widget nhận Entity, dùng business logic từ Entity.
-
-```dart
-class HomeController extends GetxController {
-  HomeController(this._repo);
-  final HomeRepository _repo;
-  final RxList<Novel> hotNovels = <Novel>[].obs;
-
-  Future<void> loadHotNovels() async {
-    final result = await _repo.getHotNovels(page: 1);
-    result.fold(
-      (f) => CustomSnackBar.showError(message: f.message),
-      (novels) => hotNovels.assignAll(novels),
-    );
-  }
-}
-```
-
----
-
-## 4. Vi phạm phổ biến (BLOCK / WARN)
-
-| # | Vi phạm | Sửa |
-|---|---------|-----|
-| 1 | Model có business logic / computed getter | Chuyển logic sang Entity |
-| 2 | Entity có `fromJson`/`toJson` | Bỏ JSON, để ở Model |
-| 3 | Presentation import `data/models/` | Dùng Entity từ domain |
-| 4 | Repository impl trả về Model | Map Model → Entity rồi return |
-| 5 | Domain import `data/` hoặc `presentation/` | Chỉ import trong domain |
-| 6 | Controller gọi API trực tiếp / dùng ApiService | Gọi qua repository/usecase |
-
-Lệnh tự kiểm tra:
-```bash
-grep -r "import.*data/" lib/**/domain/                 # phải rỗng
-grep -r "import.*data/models/" lib/**/presentation/     # phải rỗng
-grep -r "fromJson\|toJson" lib/**/domain/entities/      # phải rỗng
-```
-
----
-
-## 5. Naming Conventions
-
-**File (snake_case):** `*_screen.dart`, `*_controller.dart`, `*_widget.dart`, `dialog_*.dart`,
-`*_entity.dart` / `*.dart` (core entity), `*_model.dart` / `*_response.dart`, `*_usecase.dart`,
-`*_repository.dart` / `*_repository_impl.dart`, `*_mapper.dart`.
-
-**Class (PascalCase):** `SettingScreen`, `SettingController`, `ButtonWidget`, `AuthEntity`,
-`UserModel`, `SettingRepository` / `SettingRepositoryImpl`.
-
-**Biến & method (camelCase):** `isLoading`, `userName`, observable `isEnabled.obs`,
-private `_apiService`, method verb-first `onTapLanguage()`, `updateUserStatus()`, `validateEmail()`.
-
----
-
-## 6. Coding Standards
-
-### Assets — type-safe với flutter_gen
-```dart
-SvgPicture.asset(Assets.icons.iconBack)        // ✅
-Image.asset('assets/images/logo.png')          // ❌ hardcode path
-```
-
-### Localization — easy_localization, key snake_case phân cấp
-```dart
-Text(context.tr('settings.language'))                                 // ✅
-Text(context.tr('auth.welcome_user', namedArgs: {'name': userName}))  // interpolation
-Text('Settings')                                                      // ❌ hardcode
-```
-Categories: `app.*`, `common.*`, `auth.*`, `settings.*`, `validation.*`, `messages.*`.
-
-### Error Handling — `Either<Failure, T>` (package dartz)
-- Repository trả về `Either<Failure, T>` với Failure type cụ thể (`ServerFailure`, `NetworkException`, `ServerTimeOut`…). **KHÔNG** throw raw exception ra UI.
-- Controller xử lý cả `failure` lẫn success trong `.fold()`, feedback qua `CustomSnackBar`.
-- Bọc async bằng `Loading.show()` / `Loading.hide()` trong `finally`.
-
-```dart
-Future<void> deleteAccount() async {
-  Loading.show();
-  try {
-    final result = await useCase.deleteAccount();
-    result.fold(
-      (f) => CustomSnackBar.showError(message: f.message),
-      (_) => Get.offAllNamed(RouterName.signIn),
-    );
-  } finally {
-    Loading.hide();
-  }
-}
-```
-
-### Style & Spacing
-- Text: `context.textStyle.bodyLG.medium`, `.headingMD.bold.textPrimary`.
-- Spacing: `AppValue.hSpaceSmall`, `AppValue.vSpaceSmall`, `AppValue.hSpace(12)`.
-- Colors: `AppColors.bgrPrimary`. Router: `Get.toNamed(RouterName.home)`.
-- Line length 80 chars.
-
----
-
-## 7. Checklist Review
-
-**Domain:** không import data/presentation · entity không JSON · entity chỉ business logic · interface trả Entity.
-**Data:** model chỉ JSON · model không business logic · impl dùng mapper · impl trả Entity sau map.
-**Presentation:** import domain · dùng Entity · widget nhận Entity · gọi repository/usecase (không API trực tiếp).
-**Coding:** asset type-safe · text qua `context.tr()` · `Either<Failure,T>` · Loading có hide trong finally · naming nhất quán · DI trong `service_locator.dart`.
-
-> Model chỉ biết JSON · Entity chỉ biết business · Mapper là cầu nối bắt buộc · Repository luôn trả Entity · Presentation quên Model tồn tại.
+## 5. Nguyên tắc khi AI sửa/sinh code (không dùng để báo lỗi review)
+- Model chỉ biết JSON · Entity chỉ biết business · Mapper là cầu nối bắt buộc · Repository luôn trả Entity · Presentation không biết Model tồn tại.
+- Tự kiểm tra: `grep -r "import.*data/" lib/**/domain/`, `grep -r "import.*data/models/" lib/**/presentation/`, `grep -r "fromJson\|toJson" lib/**/domain/entities/` phải rỗng.

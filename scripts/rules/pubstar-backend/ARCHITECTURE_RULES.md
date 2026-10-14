@@ -1,42 +1,53 @@
-# PubStar Backend - Architecture Rules
+# PubStar Backend — Kiến trúc & luật review
 
-Tài liệu này mô tả nhanh cấu trúc và quy ước nhẹ cho dự án `pubstar-backend`.
-Mục đích: giúp AI và Developer hiểu vị trí code, sửa đúng nơi, không tạo rule quá chặt gây khó phát triển.
+Tài liệu mô tả cấu trúc, quy ước và luật review của `pubstar-backend`. Căn cứ: 📐 Coding Standards — Backend Node.js/Express v1.0, áp dụng mức "nhẹ": theo pattern của domain gần nhất, không ép tách service/repository cho thay đổi nhỏ.
+Nhãn mức độ: [chặn merge] = 🔴 · [cảnh báo] = ⚠️ · [nit] = 💡. Quy tắc không có nhãn là mô tả, không dùng để báo lỗi.
+Response/error format theo pattern hiện có của domain; KHÔNG áp envelope chuẩn mới (`error_code`, `/v2`) cho endpoint cũ hoặc domain đang dùng format khác.
 
-## 1. Tổng quan dự án
+## 1. Tổng quan
+TypeScript, Express, MongoDB/Mongoose; TypeORM (PostgreSQL) cho một số module log/report; Redis/Bull, cron/worker; Swagger.
 
-`pubstar-backend` là backend TypeScript dùng Express, MongoDB/Mongoose, một số module TypeORM cho log/report, Redis/Bull, cron/worker và Swagger.
+## 2. Cấu trúc thư mục & trách nhiệm
+- `src/index.ts`: entry API server.
+- `src/api/<domain>`: router, controller, validator, schema/path Swagger. `src/api/router.ts` mount route chính (auth, users, apps, ad-units, reports, payment, network, seller, logs).
+- `src/biz/<domain>`: model Mongoose, repository, mapper, type, service nội bộ.
+- `src/common`: plugin, interface, middleware/helper chung. `src/config`: environment, swagger, job, error.
+- `src/services`: tích hợp ngoài (GAM, Cloudflare, Telegram).
+- `src/jobs`, `src/workers`, `src/cronjobs`: tác vụ nền, queue, cron.
+- `src/migrations`, `src/*typeorm.config.ts`: migration và config TypeORM.
+- `src/tools`, `src/scripts`, `src/syncs`: script vận hành; `src/docs`, `src/emails`: tài liệu, email template.
 
-Các khu vực chính:
+## 3. Luật review
 
-* `/src/index.ts`: Entry point chính của API server.
-* `/src/api`: Tầng HTTP/API, gồm router, controller, validator, schema/path Swagger theo từng domain.
-* `/src/api/router.ts`: Nơi mount các route chính như auth, users, apps, ad-units, reports, payment, network, seller, logs.
-* `/src/biz`: Logic nghiệp vụ theo domain, gồm model Mongoose, repository, mapper, type và service nội bộ.
-* `/src/common`: Code dùng chung như plugin, interface, middleware/helper chung.
-* `/src/config`: Cấu hình môi trường, swagger, job, error.
-* `/src/services`: Tích hợp dịch vụ bên ngoài như GAM, Cloudflare, Telegram.
-* `/src/jobs`, `/src/workers`, `/src/cronjobs`: Tác vụ nền, queue và cron job.
-* `/src/migrations`, `/src/*typeorm.config.ts`: Migration và config TypeORM cho các phần dùng PostgreSQL/log.
-* `/src/tools`, `/src/scripts`, `/src/syncs`: Script vận hành, migration helper, sync/tool nội bộ.
-* `/src/docs`, `/src/emails`: Tài liệu API/email template hoặc resource liên quan.
+### 3.1. Auth, quyền, validate
+- [chặn merge] Route mới/sửa trong `src/api` thao tác dữ liệu người dùng/admin mà thiếu `AuthMiddleware.requireAuth`/`authorization`/role như route cùng domain.
+- [chặn merge] Diff gỡ validation hoặc kiểm tra quyền hiện có mà không thay thế.
+- [cảnh báo] Endpoint mới nhận input không dùng `express-validation` + validator như domain cùng loại.
 
-## 2. Quy tắc làm việc đơn giản
+### 3.2. Tầng & dữ liệu
+- [cảnh báo] Controller chứa query DB phức tạp hoặc logic nghiệp vụ dài, khi domain đã có repo/service trong `src/biz` — KHÔNG báo nếu domain cũ chưa theo pattern đó và thay đổi nhỏ.
+- [chặn merge] Đổi entity TypeORM (cột/bảng) không có migration; `synchronize: true` ở môi trường thật; migration thiếu `down`.
+- [cảnh báo] Đổi tên collection/model/field Mongo đang dùng mà PR không có kế hoạch migrate dữ liệu.
+- [cảnh báo] Gọi dịch vụ ngoài (GAM, Cloudflare, Telegram) trực tiếp trong controller thay vì `src/services`.
 
-1. **Giữ đúng tầng:** Route khai báo endpoint/middleware; controller xử lý request/response; validator kiểm tra input; `biz` chứa logic nghiệp vụ/model/repo.
-2. **Không làm rule quá chặt:** Ưu tiên theo pattern hiện có của domain gần nhất. Không ép tách service/repository nếu thay đổi nhỏ và code hiện tại chưa theo pattern đó.
-3. **Auth & permission:** Khi thêm/sửa API trong `/src/api`, kiểm tra `AuthMiddleware.requireAuth`, `authorization`, role và permission tương tự route cùng domain.
-4. **Validation:** Với endpoint nhận input, ưu tiên dùng `express-validation` và validator hiện có. Không bỏ validation cũ khi refactor.
-5. **Database:** Với MongoDB, dùng model/type/repo trong `/src/biz`. Với module log/report dùng TypeORM, kiểm tra đúng config/migration tương ứng trước khi sửa schema.
-6. **Response & error:** Giữ format response/error đang dùng trong controller/middleware cùng domain. Không tự tạo format mới nếu không cần.
-7. **Swagger/OpenAPI:** Khi thêm hoặc đổi API public cho web dùng, cập nhật schema/path/swagger liên quan nếu domain đó đang có tài liệu.
-8. **Config & secret:** Không hard-code URL, token, credential. Đọc từ `/src/config/environment.ts` hoặc biến môi trường theo pattern hiện có.
-9. **Job/worker/cron:** Khi sửa tác vụ nền, chú ý idempotency và tránh tạo side effect lặp ngoài ý muốn.
-10. **Trước khi sửa lớn:** Nếu thay đổi ảnh hưởng auth, permission, payment, report, migration hoặc API contract cho web, hãy đọc kỹ luồng liên quan và xác nhận phạm vi trước.
+### 3.3. Response, Swagger, vận hành
+- [cảnh báo] Response/error mới khác format controller/middleware cùng domain.
+- [cảnh báo] API public cho web thêm/đổi mà không cập nhật schema/path Swagger của domain đang có tài liệu — CHỈ khi xác minh được domain có Swagger.
+- [cảnh báo] Job/worker/cron mới không idempotent, có thể chạy lặp side effect (gửi email, thanh toán, ghi report).
+- [cảnh báo] Thay đổi luồng payment/report mà PR không mô tả phạm vi — dạng câu hỏi.
 
-## 3. Nguyên tắc refactor cho AI
+### 3.4. Cấu hình & bảo mật
+- [chặn merge] Hardcode token/credential.
+- [cảnh báo] Hardcode URL; đọc `process.env` ngoài `src/config/environment.ts`.
 
-* Bảo toàn endpoint, method, request/response shape nếu không được yêu cầu đổi.
-* Không đổi tên collection/model/field database khi chưa có migration và xác nhận ảnh hưởng.
-* Không thêm dependency mới nếu có thể dùng thư viện đang có.
-* Ưu tiên thay đổi nhỏ, dễ review, đúng mục tiêu.
+## 4. Quy ước đặt tên
+- [nit] Theo pattern file của domain gần nhất.
+
+## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
+- Domain cũ chưa tách service/repository: không yêu cầu tách khi PR chỉ sửa nhỏ.
+- Format response khác chuẩn CORE mới: giữ nguyên theo domain.
+- (Bổ sung tại đây các mẫu báo sai lặp lại mà dev đã xác nhận.)
+
+## 6. Nguyên tắc khi AI sửa/sinh code (không dùng để báo lỗi review)
+- Bảo toàn endpoint, method, request/response shape. Không thêm dependency mới nếu thư viện có sẵn đáp ứng.
+- Thay đổi ảnh hưởng auth, permission, payment, report, migration, API contract: đọc kỹ luồng liên quan, xác nhận phạm vi trước.

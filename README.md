@@ -185,18 +185,33 @@ Trong file `.github/workflows/ai-review.yml`, phần `with:` có các tham số 
 
 ### Các giá trị `stack` được hỗ trợ
 
-Giá trị `stack` chính là tên thư mục bên trong `scripts/stacks/`. AI sẽ đọc TẤT CẢ file `.md` nằm trực tiếp trong thư mục đó để biết đang review cho công nghệ nào. Với biến thể TypeScript, thư mục đã gộp sẵn cả quy tắc framework + quy tắc TypeScript `strict`.
+Giá trị `stack` là đường dẫn thư mục bên trong `scripts/stacks/`. Prompt được nạp theo thứ tự:
 
-| Giá trị `stack`        | Công nghệ                 | File quy tắc được nạp         |
-| ---------------------- | ------------------------- | ----------------------------- |
-| `expressjs`            | Express.js (JavaScript)   | `express.md`                  |
-| `expressjs/typescript` | Express.js + TypeScript   | `express.md`, `typescript.md` |
-| `reactjs`              | React (JavaScript)        | `react.md`                    |
-| `reactjs/typescript`   | React + TypeScript        | `react.md`, `typescript.md`   |
-| `nextjs`               | Next.js (JavaScript)      | `next.md`                     |
-| `nextjs/typescript`    | Next.js + TypeScript      | `next.md`, `typescript.md`    |
-| `backend-node`         | Node.js (quản lý package) | `node.md`, `typescript.md`    |
-| `mobile-ios`           | iOS / Swift               | `swift.md`                    |
+1. `scripts/stacks/core/core.md` — quy tắc CORE của Coding Standards, luôn nạp cho mọi dự án.
+2. Với stack lồng nhau (`<x>/typescript`): các file `.md` nằm trực tiếp trong thư mục cha `<x>/`.
+3. Các file `.md` nằm trực tiếp trong thư mục `stack` (KHÔNG nạp thư mục con).
+
+| Giá trị `stack`        | Công nghệ                         | File được nạp (ngoài `core/core.md`)                                                        |
+| ---------------------- | --------------------------------- | ------------------------------------------------------------------------------------------- |
+| `expressjs`            | Express.js (JavaScript)           | `expressjs/express.md`, `expressjs/node.md`                                                 |
+| `expressjs/typescript` | Express.js + TypeScript           | như trên + `expressjs/typescript/express.md`, `expressjs/typescript/typescript.md`          |
+| `backend-node`         | Node.js + TypeScript (không Express) | `backend-node/node.md`, `backend-node/typescript.md`                                     |
+| `reactjs`              | React (JavaScript)                | `reactjs/react.md`                                                                          |
+| `reactjs/typescript`   | React + TypeScript                | như trên + `reactjs/typescript/react.md`, `reactjs/typescript/typescript.md`                |
+| `nextjs`               | Next.js (JavaScript)              | `nextjs/next.md`, `nextjs/react.md`                                                         |
+| `nextjs/typescript`    | Next.js + TypeScript              | như trên + `nextjs/typescript/next.md`, `nextjs/typescript/typescript.md`                   |
+| `backend-golang`       | Go / Gin                          | `backend-golang/golang.md`                                                                  |
+| `flutter`              | Flutter / Dart                    | `flutter/dart.md`                                                                           |
+| `mobile-android`       | Android (Kotlin/Java)             | `mobile-android/kotlin.md`                                                                  |
+| `mobile-ios`           | iOS / Swift                       | `mobile-ios/swift.md`                                                                       |
+| `js-ads`               | Ad tag JS chạy trên trang publisher | `js-ads/javascript.md`                                                                    |
+| `vanilla-js`           | SDK/script JS-TS chạy trên trình duyệt | `vanilla-js/javascript.md`                                                             |
+
+> Dự án TypeScript dùng `expressjs/typescript`, `reactjs/typescript`, `nextjs/typescript` để có thêm luật TypeScript. `stack: expressjs` chỉ nạp luật JavaScript.
+>
+> Các file trùng nội dung phải sửa đồng bộ: `*/typescript.md` (4 bản), `backend-node/node.md` = `expressjs/node.md`, `reactjs/react.md` = `nextjs/react.md`.
+
+Quy ước viết luật (stack và rules): mỗi luật gắn nhãn `[chặn merge]` (🔴), `[cảnh báo]` (⚠️) hoặc `[nit]` (💡); luật chỉ đúng trong điều kiện nhất định ghi "CHỈ áp dụng khi ..."; mỗi file `rules/<project>/ARCHITECTURE_RULES.md` có mục "Ngoại lệ / nợ kỹ thuật đã biết" để liệt kê chỗ code cũ sai có chủ đích và các mẫu báo sai dev đã xác nhận.
 
 Ví dụ dùng cho dự án Next.js + TypeScript:
 
