@@ -48,6 +48,12 @@ Build: TypeScript ES2020 strict (`noUnusedLocals`, `noUnusedParameters`) → Vit
 - [chặn merge] Gửi/log raw PII thay vì hash; consent level không được kiểm tra trước khi thu thập/gửi signal cần consent — CHỈ khi diff cho thấy rõ bỏ qua `Gatekeeper`.
 - [cảnh báo] Canonical signal type khai báo ngoài `types.ts`; build-time constant không `declare const __XYZ__: string` hoặc không định nghĩa trong `vite.config.ts`.
 
+### 3.5. Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+- [cảnh báo] Collector mới mà test không có case browser API không tồn tại/throw → trả `null`; collector có timeout mà test không kiểm quá giờ → `null` (dùng fake timers).
+- [cảnh báo] Thay đổi `NormalizedPayload`/`DCEClient*` hoặc payload `IdtModule`/`IvtModule` mà test không assert shape payload gửi đi.
+- [nit] Test `idt/`/`ivt/` đọc `sharedData` trực tiếp thay vì stub `getDatas()`.
+
 ## 4. Quy ước đặt tên
 - [nit] File collector camelCase theo chức năng; hàm collector prefix `collect` (trừ `getBehavioralData`); interface group prefix `DCEClient`; constant `UPPER_SNAKE_CASE`.
 

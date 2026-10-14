@@ -35,5 +35,5 @@ Nguồn: Coding Standards — Mobile App Flutter v1.0 + CORE. Thư viện cụ t
 - [cảnh báo] `Loading.show()` (hoặc tương đương) không có `hide()` trong `finally`.
 - [nit] Dùng `!` tuỳ tiện thay vì xử lý null tường minh.
 
-## Test (Flutter §13)
-- [nit] Usecase/repository impl/mapper MỚI hoặc bug fix không có test — dạng câu hỏi.
+## Test
+- Luật về unit test: xem `flutter/testing.md`.

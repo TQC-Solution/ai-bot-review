@@ -39,6 +39,10 @@ Next.js 14 (App Router), React 18, TypeScript, Ant Design, SCSS, API client sinh
 - [cảnh báo] `any` mới cho dữ liệu API quan trọng khi type OpenAPI đã có.
 - KHÔNG báo việc thiếu generic/phân tầng cho feature nhỏ.
 
+### Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+- KHÔNG viết/yêu cầu test cho `src/services/openapi` (code sinh tự động); test mock `DefaultApi`.
+
 ## 4. Quy ước đặt tên
 - [nit] Theo pattern file/thư mục của màn hình gần nhất.
 

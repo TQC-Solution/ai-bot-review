@@ -51,6 +51,12 @@ GIVT-03 Malformed (`givt03/`) → GIVT-04 Prefetch (`givt04/`) → GIVT-01 Datac
 - [cảnh báo] Hardcode URL, Redis addr, threshold động thay vì `internal/config/config.go`.
 - [cảnh báo] Lỗi không bọc `%w`; log raw IP/UA kèm định danh người dùng ở mức info.
 
+### 3.5. Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+- [cảnh báo] Stage GIVT/module SIVT MỚI, hoặc sửa làm đổi kết quả lọc/điểm, mà PR không có test: input hợp lệ → PASS; input vi phạm → `NO_BID` + `FilterTrace` đúng rule code; với SIVT: điểm đúng theo weight trong `sivt/config.go` — CHỈ khi thay đổi đổi hành vi (thêm/sửa nhánh, điều kiện, ngưỡng, kết quả) VÀ PR không thêm/sửa case test nào cho phần đó VÀ (nếu đọc được repo) test hiện có chưa kiểm hành vi mới; refactor không đổi hành vi thì KHÔNG báo.
+- [cảnh báo] Test scoring hardcode weight/threshold thay vì đọc từ `sivt/config.go` (test sẽ không bắt được khi đổi config).
+- [nit] Thiếu case snapshot Redis chưa có → stage PASS cho GIVT-01/02.
+
 ## 4. Quy ước đặt tên
 - [nit] Package theo chức năng chữ thường (`givt01`, `sivtl1m1`); file `snake_case.go`; struct PascalCase.
 - [nit] Stage output là pointer (`*givtXX.Output`, `*sivtYY.Score`), nil khi stage chưa chạy.

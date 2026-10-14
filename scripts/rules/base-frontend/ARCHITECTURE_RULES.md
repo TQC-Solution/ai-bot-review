@@ -48,6 +48,10 @@ Nhãn mức độ: [chặn merge] = 🔴 · [cảnh báo] = ⚠️ · [nit] = �
 - [chặn merge] Callback NextAuth trả/log mật khẩu hoặc token thô.
 - [cảnh báo] Lấy session không qua API NextAuth (`getServerSession`, `useSession`); chỉ ẩn UI để phân quyền.
 
+### Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+- [cảnh báo] Test service trong `src/services` không mock `axiosInstance` (`vi.mock('@/axios/interceptors')`) hoặc gọi API thật.
+
 ## 4. Quy ước đặt tên & tổ chức
 - [nit] Component dùng chung: thư mục PascalCase + `index.tsx`; component riêng route đặt trong `app/.../_component`.
 - [nit] Import nội bộ dùng alias `@/...` thay vì đường dẫn tương đối dài.

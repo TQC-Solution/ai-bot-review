@@ -36,5 +36,5 @@ Nguồn: Coding Standards — Frontend React/Next.js v1.0 §2–§8 + CORE. Thư
 - [cảnh báo] `<img>` thiếu `alt`; phần tử không phải button/link có `onClick` mà không có `role` và xử lý bàn phím.
 - [nit] `<button>` trong form thiếu `type`; dùng `<div>` thay thẻ ngữ nghĩa.
 
-## Test (FE §9)
-- [nit] Custom hook/util có logic nhánh MỚI hoặc bug fix không có test — dạng câu hỏi; không áp dụng nếu luật dự án ghi chưa có test.
+## Test
+- Luật về unit test: xem `testing.md` của stack.

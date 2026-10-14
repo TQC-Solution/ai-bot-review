@@ -67,6 +67,13 @@ Nhãn mức độ: [chặn merge] = 🔴 · [cảnh báo] = ⚠️ · [nit] = �
 - [cảnh báo] Đọc `process.env.X` ngoài `src/config/`; tự `new Sequelize`/`new Redis`/`mongoose.connect` ngoài `common/infrastructure`.
 - [cảnh báo] `Jwt.sign(...)` không truyền `expiresIn`.
 
+### 3.7. Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+- Hai tầng test hợp lệ: API-level `src/api/<domain>/__tests__/<domain>.<endpoint>.test.ts` (supertest, mock biz/repo) và biz-level (gọi thẳng `<Domain>Biz`, mock repo).
+- [cảnh báo] Test API mock thẳng Mongoose/Sequelize model thay vì repo (`*.repo.ts`); test biz gọi repo thật.
+- [cảnh báo] Test API không assert envelope `res.sendJson` (`error_code`, `data`) hoặc mã lỗi `ErrorCode.X` của nhánh lỗi.
+- [nit] Endpoint có `AuthMiddleware.requireAuth` mà test thiếu case không token (401).
+
 ## 4. Quy ước đặt tên
 - [nit] File theo mẫu `<domain>.<layer>.ts` (`user.biz.ts`, `user-postgres.repo.ts`); Mongoose model PascalCase (`User.ts`). Domain MỚI dùng `*.biz.ts` / class `<Domain>Biz`, không tạo thêm `*.service.ts`.
 - [nit] Class PascalCase với static method (`UserBiz`, `UserRepo`, `UserMapper`); interface tiền tố `I`, enum tiền tố `E`; hằng số message/event UPPER_SNAKE_CASE.
@@ -81,7 +88,7 @@ Các điểm dưới đây là hiện trạng của base. Chỉ báo khi code M�
 - `api/sample/sample.controller.ts`, `api/application.ts` còn import tương đối xuyên tầng.
 - `AuthMiddleware.requireAuth` chỉ chấp nhận ObjectId (token user Postgres luôn 401); payload JWT lệch khoá `id`/`userId`.
 - `config/db.ts` có `console.log` in cả cấu hình DB; `response.middleware.ts` log body + rawHeaders khi lỗi 5xx.
-- Chưa có CORS, rate limit, giới hạn body size, test framework.
+- Chưa có CORS, rate limit, giới hạn body size.
 
 ## 6. Nguyên tắc khi AI sửa/sinh code (không dùng để báo lỗi review)
 - Giữ nguyên endpoint, HTTP method, shape request/response nếu không được yêu cầu đổi; không đổi tên collection/model/cột khi chưa có migration.

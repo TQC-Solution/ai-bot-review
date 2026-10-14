@@ -60,6 +60,12 @@ Stack: **Gin · pgxpool (PostgreSQL, DB `identity_graph`) · Redis · Google Wir
 - [cảnh báo] Hardcode URL, DSN, credential thay vì `internal/config/config.go`.
 - [cảnh báo] Hàm I/O mới không nhận `context.Context`; goroutine mới không dừng theo context.
 
+### 3.6. Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+- [cảnh báo] Sửa một bước pipeline, `ComputeScore`, ngưỡng hoặc map trong `signal.go` mà PR không có test cho bước/ngưỡng đó (match → short-circuit; không match → bước sau) — CHỈ khi thay đổi đổi hành vi (thêm/sửa nhánh, điều kiện, ngưỡng, kết quả) VÀ PR không thêm/sửa case test nào cho phần đó VÀ (nếu đọc được repo) test hiện có chưa kiểm hành vi mới; refactor không đổi hành vi thì KHÔNG báo.
+- [cảnh báo] Test cache không có cả nhánh Redis hit, miss (warm lại) và Redis lỗi (degrade sang Postgres).
+- [cảnh báo] Unit test dùng `pgxpool`/Redis thật thay vì mock repository/cache; integration test thiếu `//go:build integration`.
+
 ## 4. Quy ước đặt tên
 - [nit] Package chữ thường; file `snake_case.go`; struct PascalCase; constructor `NewXxx`; bảng/cột DB `snake_case`.
 

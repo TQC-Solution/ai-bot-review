@@ -32,6 +32,9 @@ Ba tầng: **Presentation** (route, page, component) → **Feature/Domain** (hoo
 - [cảnh báo] Thay đổi làm mất loading/error/empty state đang có của màn hình mà PR không nêu.
 - [cảnh báo] Đổi props shape, return contract của component/hook dùng chung hoặc route params mà PR không nêu.
 
+### Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+
 ## 4. Quy ước đặt tên
 - [nit] Component PascalCase; hook `useXxx`; file/thư mục theo pattern feature gần nhất.
 

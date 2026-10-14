@@ -9,7 +9,7 @@ Mã nguồn `src/` được bundle thành **`pt.js`** — thẻ quảng cáo ch�
 2. Đa trình duyệt: Chrome, Safari, Firefox, Edge, WebView mobile.
 3. Trình duyệt cũ: target build **ES2015**.
 
-Stack: JavaScript thuần (ES module, không TypeScript, không framework). esbuild `format: 'iife'`, `target: 'es2015'` → `dist/pt.js`; bản phát hành obfuscate → `dist/pt.min.js` (`esbuild.config.mjs`). Endpoint tiêm lúc build qua token `__PF_*__`. pnpm v10, Node 22 (CI). **Không có test/lint/typecheck** — review là tuyến phòng thủ chính.
+Stack: JavaScript thuần (ES module, không TypeScript, không framework). esbuild `format: 'iife'`, `target: 'es2015'` → `dist/pt.js`; bản phát hành obfuscate → `dist/pt.min.js` (`esbuild.config.mjs`). Endpoint tiêm lúc build qua token `__PF_*__`. pnpm v10, Node 22 (CI). Đã có unit test (backfill đạt coverage tối thiểu); chưa có lint/typecheck — review vẫn là tuyến phòng thủ chính cho tương thích trình duyệt.
 Public API duy nhất: `window.pubfuturetag` (`push`, `divIds`, `consentApi`).
 
 ## 2. Cấu trúc & quy ước
@@ -50,11 +50,16 @@ Public API duy nhất: `window.pubfuturetag` (`push`, `divIds`, `consentApi`).
 - [cảnh báo] Thêm dependency nặng hoặc phình bundle; không dùng lại helper của `pubfutureCommon`.
 - [nit] Đặt tên, đơn giản hoá, dùng lại helper.
 
+### 3.4. Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+- [cảnh báo] Thay đổi logic tracking (queue, flush 10s, flush `pagehide`, dedup theo `et`), passback, parallel key, refresh/frequency mà PR không có test cho hành vi đó — CHỈ khi thay đổi đổi hành vi (thêm/sửa nhánh, điều kiện, ngưỡng, kết quả) VÀ PR không thêm/sửa case test nào cho phần đó VÀ (nếu đọc được repo) test hiện có chưa kiểm hành vi mới; refactor không đổi hành vi thì KHÔNG báo.
+- [nit] Test module mới không tạo qua factory `create*(win, doc, log, fetch, deps, options)` với phụ thuộc giả mà sửa global.
+
 ## 4. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo
 - Khối code bị comment lớn trong `index.js` (đo timing, `logAdMetricsForUS`): instrumentation tắt có chủ đích.
 - Comment/commit message tiếng Việt.
 - Tên rút gọn trong data config (`sz`, `hcp`, `cid`, `ret`, `af`, `iad`, `sad`...): hợp đồng dữ liệu với server.
-- Thiếu test, thiếu TypeScript, thiếu lint: KHÔNG yêu cầu thêm (kể cả mục test của CORE).
+- Thiếu TypeScript, thiếu lint: KHÔNG yêu cầu thêm.
 
 ## 5. Nguyên tắc khi AI sửa/sinh code (không dùng để báo lỗi review)
 - Theo pattern DI và thứ tự init hiện có; dùng helper `pubfutureCommon`; mọi endpoint mới đi qua token `__PF_*__`.

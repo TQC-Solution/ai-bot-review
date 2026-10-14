@@ -41,4 +41,4 @@ Nguồn: Coding Standards — Backend Go/Gin v1.0 + CORE. Đường dẫn packag
 - [nit] Symbol exported MỚI thiếu GoDoc bắt đầu bằng tên symbol.
 - [nit] Viết tắt sai kiểu chữ trong tên (`Url`, `Id`, `Http` thay vì `URL`, `ID`, `HTTP`); tên package có gạch dưới/chữ hoa.
 - [nit] Interface định nghĩa ở phía hiện thực thay vì nơi dùng; interface quá lớn.
-- [nit] Logic nghiệp vụ MỚI hoặc bug fix không có test table-driven — dạng câu hỏi.
+- Luật về unit test: xem `backend-golang/testing.md`.

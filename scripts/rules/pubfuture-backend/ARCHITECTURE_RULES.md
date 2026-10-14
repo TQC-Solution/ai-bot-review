@@ -37,6 +37,9 @@ Backend tách bạch tầng HTTP, tầng nghiệp vụ và tầng truy cập d�
 - [cảnh báo] Sửa logging, metrics, queue, cron, cache làm thay đổi hành vi vận hành mà PR không nêu.
 - [cảnh báo] Token/key hardcode; đọc `process.env` ngoài `src/config`.
 
+### Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+
 ## 4. Quy ước đặt tên
 - [nit] File theo domain + vai trò (`user.controller.ts`, `user.service.ts`, `user.repository.ts`), thống nhất với domain gần nhất.
 

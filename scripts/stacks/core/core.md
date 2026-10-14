@@ -35,5 +35,26 @@ Luật riêng của dự án được phép nới hoặc thay thế các quy t�
 - [nit] Hàm mới quá dài, lồng hơn 3 cấp hoặc nhận hơn 3 tham số rời (nên gom thành object/struct).
 - [nit] Magic number/string lặp lại trong logic mới thay vì hằng số có tên.
 
-## Test (Core §8)
-- [nit] Bug fix hoặc logic nghiệp vụ mới mà PR không có test: chỉ nêu dưới dạng câu hỏi ("Đã có test cho trường hợp này chưa?"). KHÔNG áp dụng khi luật dự án ghi dự án chưa có test framework.
+## Test (Core §8 + Test Standard §2, §5 — chung mọi stack)
+Luật chi tiết theo stack nằm trong file `testing.md` của stack (nếu có). KHÔNG áp dụng mục này khi luật dự án ghi dự án chưa có test framework.
+Áp dụng cho file test có trong diff (`*.test.*`, `*.spec.*`, `*_test.go`, `*_test.dart`, thư mục `__tests__`/`test/`):
+- [chặn merge] Commit test bị "focus": `.only`, `fit`, `fdescribe`, `describe.only`, `test.only`, `solo: true` — các test khác bị bỏ qua, quality gate mất tác dụng.
+- [cảnh báo] Test MỚI không có assertion nào (chỉ gọi hàm, hoặc chỉ kiểm "không throw" khi hàm có giá trị trả về cần kiểm). (F.I.R.S.T — Self-validating)
+- [cảnh báo] Unit test gọi tài nguyên thật: DB, Redis, Kafka/queue, HTTP/API ngoài, file hệ thống ngoài thư mục fixture. Integration test phải tách riêng (build tag, thư mục/tên riêng). (§2.5)
+- [cảnh báo] Logic test phụ thuộc thời gian thật hoặc ngẫu nhiên (`Date.now()`, `new Date()`, `time.Now()`, `DateTime.now()`, `Math.random`, `uuid`) mà không cố định/mock — test flaky. (F.I.R.S.T — Repeatable)
+- [cảnh báo] Chờ bất đồng bộ bằng sleep/timeout cố định (`setTimeout`, `time.Sleep`, `Future.delayed`) thay vì fake timer/`waitFor`/channel.
+- [cảnh báo] Thêm skip/disable (`.skip`, `xit`, `xdescribe`, `t.Skip`, `skip: true`) mà không ghi lý do + ticket theo dõi trong comment. (Quality Gate)
+- [cảnh báo] Diff hạ ngưỡng coverage, tắt kiểm tra coverage, hoặc loại thêm file nguồn khỏi coverage mà PR không ghi tech lead đã duyệt. (Quality Gate)
+- [cảnh báo] Diff xoá test đang có hoặc nới assertion (đổi giá trị mong đợi cho khớp kết quả mới, `toEqual` → `toBeDefined`) mà PR không giải thích thay đổi hành vi — dạng câu hỏi nếu có thể là thay đổi nghiệp vụ hợp lệ.
+- [cảnh báo] Test phụ thuộc thứ tự/trạng thái của test khác: biến dùng chung bị test trước sửa, không reset mock/state giữa các test. (F.I.R.S.T — Independent)
+- [nit] Test kiểm chi tiết cài đặt thay vì hành vi (state nội bộ, hàm private, số lần gọi hàm nội bộ không thuộc contract). (§1.1)
+- [nit] Tên test không mô tả hành vi theo mẫu [đơn vị] + [điều kiện] + [kết quả mong đợi] (ví dụ `test1`, `should work`); test không chia rõ Arrange – Act – Assert hoặc kiểm nhiều hành vi không liên quan trong một case. (§2.3, §2.4)
+- [nit] Viết test cho file sinh tự động, getter/setter tầm thường, hằng số. (§2.4)
+
+Về việc THIẾU test:
+- Chỉ xét "thiếu test" khi PR có code MỚI hoặc THAY ĐỔI HÀNH VI: thêm hàm/nhánh/điều kiện, đổi giá trị trả về, ngưỡng, side effect (ghi DB, gửi event, gọi API), hoặc sửa bug.
+- KHÔNG báo thiếu test khi PR chỉ: sửa docs/comment/README; đổi format, đổi tên, di chuyển file, tách hàm/refactor KHÔNG đổi hành vi; đổi text log/message hiển thị, style/CSS, layout UI thuần; đổi config/CI/env/`.env.example`, bump dependency; sửa file sinh tự động, migration, script vận hành; xoá code chết.
+- KHÔNG báo khi test hiện có đã bao phủ thay đổi: PR sửa/thêm case trong file test của đơn vị đó, hoặc (nếu đọc được repo) file test hiện có đã kiểm đúng nhánh/hành vi vừa đổi. Test cũ gãy vì đổi hành vi sẽ do CI bắt, không cần bot báo.
+- Không chắc thay đổi có đổi hành vi hay không: không báo, hoặc hỏi ở mức 💡.
+- [cảnh báo] Bug fix (PR/commit mô tả là fix bug) mà PR không có regression test tái hiện bug — CHỈ khi xác minh được danh sách file của PR; không xác minh được thì hỏi.
+- [nit] Đơn vị bắt buộc test theo `testing.md` của stack có THAY ĐỔI HÀNH VI mà PR không thêm/sửa case test nào cho đơn vị đó — dạng câu hỏi.

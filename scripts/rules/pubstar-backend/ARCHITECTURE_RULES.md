@@ -40,6 +40,10 @@ TypeScript, Express, MongoDB/Mongoose; TypeORM (PostgreSQL) cho một số modul
 - [chặn merge] Hardcode token/credential.
 - [cảnh báo] Hardcode URL; đọc `process.env` ngoài `src/config/environment.ts`.
 
+### Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+- Test theo pattern domain gần nhất; không yêu cầu đổi cấu trúc test cũ.
+
 ## 4. Quy ước đặt tên
 - [nit] Theo pattern file của domain gần nhất.
 

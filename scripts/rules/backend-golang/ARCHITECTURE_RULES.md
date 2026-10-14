@@ -55,12 +55,16 @@ Stack: Gin · MongoDB · Redis (qua Sentinel) · Kafka · Asynq · Google Wire. 
 - [cảnh báo] `os.Getenv` rải rác; `fmt.Println`/`log.Print*` thay vì logger của dự án.
 - [nit] Symbol exported mới thiếu GoDoc.
 
+### 3.6. Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+- [cảnh báo] Sửa logic phân giải config `v4` (targeting, frequency, blocklist, passback) mà PR không có test cho nhánh thay đổi — CHỈ khi thay đổi đổi hành vi (thêm/sửa nhánh, điều kiện, ngưỡng, kết quả) VÀ PR không thêm/sửa case test nào cho phần đó VÀ (nếu đọc được repo) test hiện có chưa kiểm hành vi mới; refactor không đổi hành vi thì KHÔNG báo.
+- [nit] Test controller version mới không dùng `httptest` + `gin.TestMode` qua router của version đó.
+
 ## 4. Quy ước đặt tên
 - [nit] File `snake_case.go`; package chữ thường không gạch dưới; constructor `NewXxx`; viết tắt đúng chữ hoa (`ID`, `URL`, `HTTP`).
 - [nit] Router version mới đặt tên `router_v{N}.go`, struct `RouterV{N}`.
 
 ## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
-- Repo chưa có file test: KHÔNG yêu cầu thêm test cho từng PR (chỉ hỏi khi PR đụng logic phân giải config/targeting phức tạp, mức 💡).
 - `v1` là API legacy: không đề xuất refactor `v1` khi PR không yêu cầu.
 - Gin default logger tắt ở production (có middleware logger riêng) — không báo thiếu logger.
 

@@ -50,6 +50,11 @@ feature/
 - [cảnh báo] `print()` trong code; log token/PII; lưu token bằng SharedPreferences/Hive thay vì secure storage.
 - [nit] File/class/method không theo quy ước §3.
 
+### 2.5. Test
+Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
+- [cảnh báo] Repository impl mới mà test không có đủ: `res['success'] == true` → `Right` qua mapper; `success != true` → `Left(ServerFailure)`; exception → `Left`.
+- [nit] Test mapper không có case field null/thiếu.
+
 ## 3. Quy ước đặt tên
 - File snake_case: `*_screen.dart`, `*_controller.dart`, `*_widget.dart`, `dialog_*.dart`, `*_entity.dart`, `*_model.dart`/`*_response.dart`, `*_usecase.dart`, `*_repository.dart`/`*_repository_impl.dart`, `*_mapper.dart`.
 - Class PascalCase (`SettingScreen`, `SettingController`, `UserModel`, `SettingRepositoryImpl`); biến/method camelCase, method bắt đầu bằng động từ (`onTapLanguage()`, `updateUserStatus()`); private có `_`.
