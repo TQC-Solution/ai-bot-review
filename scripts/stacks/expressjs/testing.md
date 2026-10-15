@@ -5,7 +5,7 @@ Nguồn: [TECH] UNIT_TEST_STANDARD — API-level. Bổ sung cho mục Test trong
 Bối cảnh chuẩn: test API-level đi qua route → middleware (auth) → validation → controller bằng supertest; mock toàn bộ DB, Redis, HTTP client, queue, time, random. File test: `src/api/<module>/__tests__/<module>.<endpoint>.test.(js|ts)` (chấp nhận `__test__`). Jest: `testEnvironment: 'node'`, `restoreMocks: true`, chạy `--runInBand`; ngưỡng coverage global statements 80 · branches 70 · functions 80 · lines 80. Dự án có thể có thêm test tầng biz (gọi thẳng method biz, mock repo) — hợp lệ, không báo sai vị trí.
 
 ## Thiếu test (§1, §6 — Definition of Done)
-- [cảnh báo] Endpoint MỚI (route + controller mới) mà PR không có file test cho endpoint đó — CHỈ khi xác minh được danh sách file của PR; không xác minh được thì hỏi.
+- [chặn merge] Endpoint MỚI (route + controller mới) mà PR không có file test cho endpoint đó — CHỈ khi xác minh được danh sách file của PR; không xác minh được thì hỏi ở mức ⚠️. (REVIEW.express.md — Core §8)
 - [nit] File test cho endpoint mới/sửa thiếu nhóm case bắt buộc: happy path (200), validation (thiếu field, sai kiểu → 400), boundary (null/undefined/chuỗi rỗng/số âm/ngày quá xa), lỗi quyền (401 không token, 403 sai quyền) — CHỈ khi nhìn thấy toàn bộ file test và route có middleware tương ứng (ví dụ không báo thiếu 401/403 cho route public).
 
 ## Mock (§7, §8)

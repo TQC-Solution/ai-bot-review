@@ -159,11 +159,12 @@ cat >> "$TEMP_PROMPT" <<EOF
    the "do not report" list and the known technical debt of the project.
 4. Report only concrete, evidence-based, actionable findings with severity,
    problem, basis (rule), and suggested fix.
-5. Post inline review comments on the relevant lines, plus one concise summary
-   comment on the Pull Request in the output format of the system prompt.
+5. Post inline review comments on the relevant lines, plus one summary comment
+   on the Pull Request containing the summary block of the system prompt
+   (verdict, MUST/SHOULD/NOTE counts, sensitive areas, missing tests).
 6. Do not edit files, commit, or push code.
-7. If no significant issues are found, post the exact "no issues" sentence from
-   the system prompt.
+7. If no significant issues are found, post only the summary comment with the
+   pass verdict and the exact "no issues" sentence from the system prompt.
 EOF
 
 # Random delimiter avoids collision with rule content.

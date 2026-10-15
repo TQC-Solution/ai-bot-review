@@ -1,44 +1,51 @@
 # Quy tắc Go backend (Gin) — chung cho các dự án Go
-Nguồn: Coding Standards — Backend Go/Gin v1.0 + CORE. Đường dẫn package (`internal/app/api/...`, `internal/repository`...) có thể khác giữa các dự án; luật dự án mô tả cấu trúc cụ thể.
+Nguồn: Coding Standards — Backend Go/Gin v1.0 + CORE + checklist AI review `REVIEW.go.md` (mục B). Nhãn: [chặn merge] = MUST · [cảnh báo] = SHOULD · [nit] = NOTE. Đường dẫn package (`internal/app/api/...`, `internal/repository`...) có thể khác giữa các dự án; luật dự án mô tả cấu trúc cụ thể.
+
+Luồng chuẩn: `router → middleware → controller (bind + validate) → service → repository → MongoDB`, phụ thuộc MỘT chiều.
 
 ## Ranh giới tầng & DI (Go §1–§4)
-- [chặn merge] Phụ thuộc sai chiều: repository import service/app; service import controller/router; controller gọi thẳng repository/driver DB/Redis/Kafka; hoặc tạo import cycle.
+- [chặn merge] Phụ thuộc sai chiều: repository import service/app; service import app/controller/router; controller import repository/infrastructure; hoặc tạo import cycle.
 - [chặn merge] Service/repository nhận `*gin.Context` hoặc import `gin`. Service nhận `context.Context`; chỉ controller/middleware làm việc với Gin.
-- [chặn merge] Sửa tay `wire_gen.go` (diff đổi `wire_gen.go` mà không đổi `wire.go`/provider tương ứng).
-- [cảnh báo] Controller chứa logic nghiệp vụ thay vì bind → validate → gọi service → trả response.
-- [cảnh báo] Import driver Mongo/pgx/Redis ngoài tầng repository/infrastructure.
-- [cảnh báo] Đọc body thô (`ioutil.ReadAll(c.Request.Body)`, `GetRawData`) thay vì `ShouldBind*` vào DTO, khi không có lý do rõ (ví dụ verify chữ ký).
-- [cảnh báo] Provider mới khởi tạo phụ thuộc thủ công hoặc qua biến toàn cục giữ state thay vì constructor `NewXxx` + Wire; `wire.go` thiếu `//go:build wireinject`.
+- [chặn merge] Controller chứa logic nghiệp vụ hoặc gọi thẳng repository/driver DB/Redis/Kafka thay vì bind → validate → gọi service → trả response.
+- [chặn merge] Import driver Mongo (hoặc pgx/Redis client) ngoài `internal/repository` và `internal/infrastructure`.
+- [chặn merge] Request MỚI không có struct DTO trong `app/api/binding`; đọc body thô (`io.ReadAll(c.Request.Body)`, `GetRawData`) thay vì `ShouldBindJSON`/`ShouldBindQuery` — trừ khi có lý do ghi rõ (ví dụ verify chữ ký); validator tuỳ chỉnh MỚI không đăng ký tập trung ở `app/api/validations`.
+- [chặn merge] Sửa tay `wire_gen.go` (diff đổi `wire_gen.go` mà không đổi `wire.go`/provider tương ứng); `wire.go` thiếu `//go:build wireinject`.
+- [chặn merge] Provider mới khởi tạo phụ thuộc thủ công, hoặc dùng biến toàn cục giữ state nghiệp vụ, thay vì constructor `NewXxx` + Wire.
 
-## Lỗi (Go §5–§6)
-- [chặn merge] Bỏ qua error trả về (`_ = f()` không comment, hoặc gọi hàm trả error mà không kiểm `err != nil`) trên thao tác I/O/DB.
+## Response & lỗi (Go §5–§6)
+- [chặn merge] `c.JSON(...)` với hình dạng khác envelope thay vì `common.RespondOK`/`common.RespondError`; status/message hardcode thay vì `common.NewAPIError(constant.ErrX, cause)`; mã lỗi MỚI không thêm vào `config/constant/error_code.go`.
+- [chặn merge] Bỏ qua error trả về (`_ = f()` không có comment giải thích, hoặc gọi hàm trả error mà không kiểm `err != nil`).
+- [chặn merge] `fmt.Errorf` có `err` nhưng không bọc bằng `%w`; so sánh lỗi bằng chuỗi (`err.Error() == ...`, `strings.Contains(err.Error(), ...)`) thay vì `errors.Is/As`.
 - [chặn merge] `panic` trong luồng xử lý request/job (chỉ chấp nhận lúc khởi động); `log.Fatal`/`os.Exit` ngoài `main`.
-- [cảnh báo] `fmt.Errorf` có `err` nhưng không bọc bằng `%w`; so sánh lỗi bằng chuỗi (`err.Error() == ...`, `strings.Contains(err.Error(), ...)`) thay vì `errors.Is/As`.
-- [cảnh báo] Response lỗi/thành công không đi qua helper response chung của dự án; status/message hardcode thay vì mã lỗi định nghĩa trong package constant.
-- [nit] Vừa log vừa return cùng một lỗi ở nhiều tầng (log trùng).
+- [cảnh báo] Vừa log vừa return cùng một lỗi ở nhiều tầng (chỉ log một lần ở ranh giới).
 
 ## Context & concurrency (Go §7)
-- [chặn merge] Goroutine MỚI không có cách dừng (không lắng nghe `ctx.Done()`, không có `WaitGroup`/channel kết thúc) trong process chạy dài → rò rỉ.
+- [chặn merge] Hàm I/O MỚI không nhận `context.Context` là tham số đầu, hoặc dùng `context.Background()`/`context.TODO()` giữa luồng request thay vì truyền ctx xuống service/repo.
+- [chặn merge] Lưu `context.Context` trong struct.
+- [chặn merge] Goroutine MỚI không có cách dừng (không lắng nghe `ctx.Done()`, không có `WaitGroup`/channel kết thúc) trong process chạy dài → rò rỉ; scheduler/worker chạy dài không dừng khi shutdown.
 - [chặn merge] Ghi map/slice/biến dùng chung từ nhiều goroutine mà không có `sync.Mutex`/`atomic`/channel — CHỈ khi diff cho thấy rõ truy cập đồng thời.
-- [cảnh báo] Hàm I/O MỚI không nhận `context.Context` là tham số đầu, hoặc dùng `context.Background()`/`context.TODO()` giữa luồng request thay vì truyền ctx xuống.
-- [cảnh báo] Lưu `context.Context` trong struct.
+- [chặn merge] Thay đổi code concurrency mà CI/Makefile của repo không chạy `go test -race` — CHỈ khi xác minh được lệnh test; không xác minh được thì hỏi ở mức ⚠️.
+- [chặn merge] Client/consumer/goroutine/scheduler MỚI không được đóng trong graceful shutdown (SIGTERM/SIGINT → `server.Shutdown(ctx)` → đóng mongo/redis/kafka/asynq → chờ goroutine).
 - [cảnh báo] Lời gọi ra ngoài (HTTP, DB, Redis) MỚI không có timeout (`context.WithTimeout` hoặc timeout của client).
-- [cảnh báo] `defer` trong vòng lặp dài; tài nguyên (`rows`, `resp.Body`, cursor) không `defer Close()` ngay sau khi mở.
-- [cảnh báo] Client/consumer/scheduler MỚI không được đóng trong graceful shutdown.
+- [cảnh báo] Tài nguyên (`rows`, `resp.Body`, cursor) không `defer Close()` ngay sau khi mở; `defer` trong vòng lặp dài.
 
-## Job, Kafka, Redis (Go §8–§10)
-- [cảnh báo] Tên task Asynq hoặc topic Kafka là chuỗi literal thay vì hằng số trong package constant.
-- [cảnh báo] Handler task/consumer MỚI không idempotent nhìn thấy được; viết lại logic thay vì gọi service; payload chứa object lớn thay vì id.
-- [cảnh báo] `Enqueue` không cấu hình `MaxRetry`/`Timeout` khi dự án đã có quy ước.
-- [cảnh báo] Producer bỏ qua lỗi gửi; consumer commit offset trước khi xử lý xong.
+## Hạ tầng, job, Kafka (Go §8–§10)
+- [chặn merge] Hardcode URI/broker/endpoint/secret; tên task Asynq hoặc topic/consumer group Kafka là chuỗi literal thay vì hằng trong `config/constant` (`asynq.go`, `kafka.go`).
+- [chặn merge] Task Asynq MỚI không idempotent, payload là object lớn thay vì id, không validate payload, hoặc handler viết lại logic thay vì gọi service.
+- [chặn merge] Consumer Kafka không idempotent hoặc commit offset trước khi xử lý xong; producer bỏ qua lỗi gửi.
+- [cảnh báo] `Enqueue` không cấu hình `asynq.MaxRetry`/`asynq.Timeout`.
 
 ## Log, cấu hình, bảo mật (Go §11–§13)
-- [cảnh báo] `fmt.Println`/`log.Print*` để log thay vì logger có cấu trúc của dự án (logrus/zerolog/zap).
-- [cảnh báo] Đọc `os.Getenv` rải rác thay vì struct config tập trung; hardcode URI/broker/endpoint.
-- [chặn merge] Truy vấn ghép chuỗi SQL/Mongo filter từ dữ liệu người dùng.
+- [chặn merge] `fmt.Println`/`log.Print*` để log thay vì logger có cấu trúc `internal/logger` (slog/zap/logrus theo dự án); log PII/GAID/token.
+- [chặn merge] Truy vấn ghép chuỗi SQL/Mongo filter từ dữ liệu người dùng (phải dùng `bson`/tham số hoá); thao tác nhạy cảm thiếu kiểm tra quyền ở middleware/service.
+- [cảnh báo] Đọc `os.Getenv` rải rác thay vì struct config tập trung ở `internal/config`.
+- [cảnh báo] Log thiếu field bối cảnh; luồng request không mang requestId/trace id.
 
-## Quy ước (Go §14)
-- [nit] Symbol exported MỚI thiếu GoDoc bắt đầu bằng tên symbol.
-- [nit] Viết tắt sai kiểu chữ trong tên (`Url`, `Id`, `Http` thay vì `URL`, `ID`, `HTTP`); tên package có gạch dưới/chữ hoa.
-- [nit] Interface định nghĩa ở phía hiện thực thay vì nơi dùng; interface quá lớn.
-- Luật về unit test: xem `backend-golang/testing.md`.
+## Quy ước & test (Go §14, §13)
+- [chặn merge] Symbol exported MỚI thiếu GoDoc bắt đầu bằng tên symbol.
+- [chặn merge] Tên package MỚI có gạch dưới hoặc chữ hoa. (File chưa `gofmt` do CI/`golangci-lint` bắt — chỉ báo khi diff cho thấy rõ.)
+- [chặn merge] Service/logic MỚI hoặc bug fix không có test table-driven — điều kiện xác minh theo mục "Về việc THIẾU test" của `core.md` và `backend-golang/testing.md`.
+- [cảnh báo] Interface lớn hoặc định nghĩa ở phía hiện thực thay vì nơi dùng; constructor trả interface thay vì struct.
+- [cảnh báo] Viết tắt sai kiểu chữ trong tên exported (`Url`, `Id`, `Http` thay vì `URL`, `ID`, `HTTP`); biến toàn cục có thể thay đổi.
+- [cảnh báo] Unit test gọi Mongo/Kafka/Redis thật.
+- Luật chi tiết về unit test: xem `backend-golang/testing.md`.

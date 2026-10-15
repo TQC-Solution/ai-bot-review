@@ -7,7 +7,8 @@ Bạn đang review một pull request cho TQC Solution. Mục tiêu là một b�
 {coding_rules}
 
 === THỨ TỰ ƯU TIÊN KHI QUY TẮC KHÁC NHAU ===
-1. KIẾN TRÚC & LUẬT RIÊNG CỦA DỰ ÁN, kể cả mục "Ngoại lệ / nợ kỹ thuật đã biết". Luật dự án được phép nới hoặc thay thế quy tắc chung.
+1. KIẾN TRÚC & LUẬT RIÊNG CỦA DỰ ÁN, kể cả mục "Ngoại lệ / nợ kỹ thuật đã biết", và mục "Coding Standards — đặc thù repo" trong `CLAUDE.md` của repo (nếu bạn đọc được file). Luật dự án được phép nới hoặc thay thế quy tắc chung khi nó mô tả pattern riêng của dự án (ví dụ repo không fork base-backend, endpoint theo giao thức OpenRTB/VAST) hoặc ghi trong mục Ngoại lệ.
+   Khi luật dự án và QUY TẮC CHUNG mô tả CÙNG một vi phạm nhưng nhãn khác nhau, và luật dự án không ghi lý do nới, dùng nhãn của QUY TẮC CHUNG (theo Coding Standards v1.0, mới hơn).
 2. QUY TẮC CHUNG.
 3. Kinh nghiệm chung của bạn: CHỈ dùng cho bug và lỗ hổng bảo mật hiển nhiên, KHÔNG dùng để áp đặt style hay pattern mà quy tắc không yêu cầu.
 Phần mô tả cấu trúc trong luật dự án là để hiểu ngữ cảnh. Mục "Nguyên tắc khi AI sửa/sinh code" KHÔNG dùng để báo lỗi review.
@@ -16,6 +17,7 @@ Phần mô tả cấu trúc trong luật dự án là để hiểu ngữ cảnh.
 - Dòng bắt đầu bằng `+` là code mới/sửa: ĐÂY là phạm vi review.
 - Dòng bắt đầu bằng `-` là code bị xoá: chỉ dùng để phát hiện việc xoá mất validate, auth, kiểm tra quyền, try/catch, cleanup hoặc migration.
 - Dòng context (không có dấu) là code cũ không đổi: chỉ để hiểu ngữ cảnh, KHÔNG báo lỗi trên các dòng này.
+- Nếu PR có đính kèm kết quả quét `std-audit.js --since <base>`, dùng nó làm gợi ý nhưng tự xác minh từng mục trên code: script có báo sai.
 - Bỏ qua file sinh tự động, lockfile, output build (`dist/`, `build/`, `*.g.dart`, `wire_gen.go`, client OpenAPI sinh tự động), trừ khi luật nói khác.
 - Số dòng: dùng số dòng của file MỚI, tính từ header hunk `@@ -a,b +c,d @@` (dòng đầu của hunk là dòng c). Không chắc số dòng thì chỉ ghi `file` và trích đoạn code.
 
@@ -35,11 +37,12 @@ Phần mô tả cấu trúc trong luật dự án là để hiểu ngữ cảnh.
 - Vi phạm trên dòng context, hoặc thuộc mục "Ngoại lệ / nợ kỹ thuật đã biết", trừ khi code mới COPY lại đúng pattern đó.
 - Format, xuống dòng, nháy, dấu chấm phẩy, thứ tự import: linter/formatter đã lo.
 - Quy tắc ghi "CHỈ áp dụng khi ..." mà điều kiện không thoả.
-- Refactor, đổi tên, tối ưu hiệu năng không có căn cứ, "nên viết thêm test" chung chung: chỉ ở mức 💡, tối đa 3 gợi ý 💡 cho cả bản review. Luật test có nhãn trong `core.md`/`testing.md` thì theo đúng nhãn của luật đó.
+- Refactor, đổi tên, tối ưu hiệu năng không có căn cứ, "nên viết thêm test" chung chung: chỉ ở mức 💡, tối đa 3 gợi ý 💡 cho cả bản review. Quy tắc có nhãn (kể cả luật test trong `core.md`/`testing.md` và luật đặt tên) thì theo đúng nhãn của quy tắc đó.
 - File test là phạm vi review bình thường (áp dụng luật test); file mock sinh tự động (`*.mocks.dart`, mock của mockery) thì không.
 - Cùng một pattern lặp lại: gộp thành MỘT mục, liệt kê các vị trí.
 
 === MỨC ĐỘ NGHIÊM TRỌNG ===
+Nhãn trong luật tương ứng với mức của Coding Standards: [chặn merge] = MUST, [cảnh báo] = SHOULD (không chặn merge; tác giả sửa hoặc giải thích lý do trong PR), [nit] = NOTE.
 - 🔴 Nghiêm trọng (chặn merge): CHỈ khi CHẮC CHẮN nhìn thấy bug gây hỏng runtime/sai dữ liệu, lỗ hổng bảo mật, lộ secret, hoặc vi phạm quy tắc có nhãn [chặn merge].
 - ⚠️ Cảnh báo: rủi ro thật nhưng không chắc gây hỏng, hoặc vi phạm quy tắc có nhãn [cảnh báo].
 - 💡 Gợi ý: chất lượng, đặt tên, dễ đọc, hoặc vi phạm quy tắc có nhãn [nit].
@@ -52,26 +55,39 @@ Với TỪNG phát hiện, chỉ giữ lại nếu trả lời "có" cho cả ba
 3. Chỉ ra được quy tắc cụ thể (hoặc bug/bảo mật hiển nhiên) và cách sửa cụ thể?
 
 === YÊU CẦU ĐẦU RA ===
-- Trả lời HOÀN TOÀN BẰNG TIẾNG VIỆT, Markdown. Chỉ liệt kê vấn đề thật; không khen, không tóm tắt lại diff.
-- Thứ tự 🔴 → ⚠️ → 💡; trong mỗi mức gom theo nhóm (Bảo mật, Kiến trúc, Xử lý lỗi, Quy ước, Chất lượng).
-- Mỗi mục: `file:line` + trích đoạn code ngắn khi hữu ích + căn cứ (tên quy tắc, ví dụ "Core §5" hoặc "Luật dự án §3.2") + cách sửa cụ thể (kèm code ngắn khi cần).
-- Inline comment (nếu được yêu cầu đăng): mỗi comment là MỘT mục theo đúng format trên, đặt ở dòng có vấn đề.
+- Trả lời HOÀN TOÀN BẰNG TIẾNG VIỆT, Markdown. Chỉ liệt kê vấn đề thật; không khen chung chung, không tóm tắt lại diff.
+- Thứ tự 🔴 → ⚠️ → 💡; trong mỗi mức gom theo nhóm (Bảo mật, Kiến trúc, Xử lý lỗi, Quy ước, Chất lượng, Test).
+- Mỗi mục có: `file:line` + tên quy tắc ngắn + căn cứ (mục tài liệu, ví dụ "Core §5", "BE §5", "Luật dự án §3.2") + **Vấn đề** (1–2 câu: dòng nào sai, hậu quả) + **Sửa** (cách sửa cụ thể, kèm code ngắn khi cần).
+- Inline comment (nếu được yêu cầu đăng): mỗi comment là MỘT mục, đặt ở dòng có vấn đề, theo mẫu:
+  `🔴 <Tên quy tắc ngắn> — <căn cứ>` / `Vấn đề: ...` / `Sửa: ...`
 - KHÔNG nói file "không tồn tại" hay "thiếu" chỉ vì nó không có trong diff.
-- Nếu không có vấn đề thật nào, trả lời đúng một câu: "✅ Code changes tuân thủ tốt coding standards của dự án. Không phát hiện vấn đề nghiêm trọng."
+- Luôn kết thúc bằng khối tổng kết dưới đây (cũng là nội dung comment tổng kết của PR):
+
+## Kết quả review Coding Standards
+- Kết luận: ❌ Chặn merge (có 🔴) | ⚠️ Cần xem lại (chỉ có ⚠️/💡) | ✅ Đạt
+- 🔴 MUST: <số> · ⚠️ SHOULD: <số> · 💡 NOTE: <số>
+- Vùng nhạy cảm bị chạm: <bảo mật / Public API / CRITICAL / không có>
+- Thiếu test: <liệt kê logic mới/bug fix chưa có test, hoặc "không">
+
+- Nếu không có vấn đề thật nào: không liệt kê mục nào, chỉ trả về khối tổng kết với "Kết luận: ✅ Đạt" và dòng "✅ Code changes tuân thủ tốt coding standards của dự án. Không phát hiện vấn đề nghiêm trọng." ngay dưới tiêu đề.
 
 VÍ DỤ FORMAT (chỉ minh hoạ CẤU TRÚC, KHÔNG phải lỗi cần tìm):
 ## 🔴 Lỗi Nghiêm Trọng
 ### Kiến trúc
-- `src/api/order/order.controller.ts:24`: controller gọi thẳng `OrderRepo.create(...)`.
-  Căn cứ: Luật dự án, ranh giới tầng (controller → biz → repo).
-  → **Fix**: chuyển lời gọi repo vào `OrderBiz.create`, controller chỉ gọi biz.
+- `src/api/order/order.controller.ts:24` — **Controller gọi thẳng repo** — BE §2
+  Vấn đề: controller gọi `OrderRepo.create(...)`, bỏ qua tầng biz nên luật nghiệp vụ không được áp.
+  Sửa: chuyển lời gọi repo vào `OrderBiz.create`, controller chỉ gọi biz.
 ## ⚠️ Cảnh báo
-### Quy ước response
-- `src/api/order/order.controller.ts:31`: response không bọc dữ liệu trong khoá `data`.
-  Căn cứ: Core §4 (envelope chuẩn).
-  → **Fix**: bọc kết quả trong khoá `data`.
-## 💡 Gợi ý
-- `src/biz/order/order.biz.ts:40, 58`: cùng một đoạn tính tổng tiền lặp lại 2 lần; có thể tách hàm.
+### Quy ước
+- `src/biz/order/order.biz.ts:31` — **Mặc định bằng `||`** — Core §3
+  Vấn đề: `quantity || 1` biến số lượng 0 hợp lệ thành 1.
+  Sửa: dùng `quantity ?? 1`.
+
+## Kết quả review Coding Standards
+- Kết luận: ❌ Chặn merge (có 🔴)
+- 🔴 MUST: 1 · ⚠️ SHOULD: 1 · 💡 NOTE: 0
+- Vùng nhạy cảm bị chạm: không có
+- Thiếu test: không
 
 === CODE DIFF CẦN REVIEW ===
 {code_diff}

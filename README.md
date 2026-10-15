@@ -206,12 +206,15 @@ Giá trị `stack` là đường dẫn thư mục bên trong `scripts/stacks/`. 
 | `mobile-ios`           | iOS / Swift                       | `mobile-ios/swift.md`                                                                       |
 | `js-ads`               | Ad tag JS chạy trên trang publisher | `js-ads/javascript.md`, `js-ads/testing.md`                                               |
 | `vanilla-js`           | SDK/script JS-TS chạy trên trình duyệt | `vanilla-js/javascript.md`, `vanilla-js/testing.md`                                    |
+| `java`                 | Java (chỉ CORE, consumer/stream)  | `java/java.md`                                                                              |
 
 > Dự án TypeScript dùng `expressjs/typescript`, `reactjs/typescript`, `nextjs/typescript` để có thêm luật TypeScript. `stack: expressjs` chỉ nạp luật JavaScript.
 >
 > Các file trùng nội dung phải sửa đồng bộ: `*/typescript.md` (4 bản), `backend-node/node.md` = `expressjs/node.md`, `reactjs/react.md` = `nextjs/react.md`, `backend-node/testing.md` = `expressjs/testing.md`, `reactjs/testing.md` = `nextjs/testing.md`, `js-ads/testing.md` = `vanilla-js/testing.md`.
 >
 > `testing.md` = luật review file unit test theo Test Standard của từng stack (Node/Express, Go, React/Next, Flutter). Luật test chung cho mọi stack nằm ở mục Test của `core/core.md`.
+
+Căn cứ của `core/` và các stack Express, Node, TypeScript, Go, Flutter, Java: bộ 📐 Coding Standards v1.0 (CORE + bản stack) và checklist AI review `REVIEW.<stack>.md` đi kèm. Mức của checklist map sang nhãn: MUST = `[chặn merge]`, SHOULD = `[cảnh báo]`, NOTE = `[nit]`. Khi luật dự án và luật chung mô tả cùng một vi phạm với nhãn khác nhau mà luật dự án không ghi lý do nới, bot dùng nhãn của luật chung. Các stack React/Next, SDK web (`js-ads`, `vanilla-js`), Android, iOS và các file `testing.md` chưa có checklist `REVIEW` mới: giữ luật cũ.
 
 Quy ước viết luật (stack và rules): mỗi luật gắn nhãn `[chặn merge]` (🔴), `[cảnh báo]` (⚠️) hoặc `[nit]` (💡); luật chỉ đúng trong điều kiện nhất định ghi "CHỈ áp dụng khi ..."; mỗi file `rules/<project>/ARCHITECTURE_RULES.md` có mục "Ngoại lệ / nợ kỹ thuật đã biết" để liệt kê chỗ code cũ sai có chủ đích và các mẫu báo sai dev đã xác nhận.
 

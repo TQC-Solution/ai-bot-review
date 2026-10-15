@@ -4,7 +4,7 @@ Nguồn: [TECH] Test Standard — Backend Go/Gin v1.0. Bổ sung cho mục Test 
 Bối cảnh chuẩn: `*_test.go` đặt CẠNH file source, CÙNG package; mock sinh bằng mockery (khai báo trong `.mockery.yaml`, đặt ở `mocks/`) hoặc viết tay; integration test tách bằng `//go:build integration`. Coverage tối thiểu: toàn service 75% · `internal/service` 85% · controller/handler 70%; chạy `go test ./... -race`.
 
 ## Thiếu test (§3.2, §7.1)
-- [cảnh báo] Hàm/method MỚI trong `internal/service/`, util có nhánh rẽ trong `internal/utils/`, custom validator, handler worker (Asynq) mà PR không có `*_test.go` tương ứng — CHỈ khi xác minh được danh sách file của PR; không xác minh được thì hỏi.
+- [chặn merge] Hàm/method MỚI trong `internal/service/`, util có nhánh rẽ trong `internal/utils/`, custom validator, handler worker (Asynq) mà PR không có `*_test.go` tương ứng — CHỈ khi xác minh được danh sách file của PR; không xác minh được thì hỏi ở mức ⚠️. (REVIEW.go.md — Go §13)
 - [nit] Test có trong diff nhưng thiếu case tối thiểu (CHỈ khi nhìn thấy toàn bộ test của đơn vị đó):
   - Service: happy path; lỗi nghiệp vụ → `*APIError` đúng `constant.ErrX`; lỗi kỹ thuật từ repo được bọc `%w` và `errors.Is` khớp; verify repo gọi đúng tham số (`mock.Anything` cho ctx).
   - Controller Gin: bind fail → 422 + envelope lỗi đúng shape; service trả `*APIError` → đúng HTTP status; thành công → envelope `{success: true, data}`.
@@ -26,7 +26,7 @@ Bối cảnh chuẩn: `*_test.go` đặt CẠNH file source, CÙNG package; mock
 - [cảnh báo] `t.Parallel()` trong subtest dùng biến vòng lặp mà không capture (`tt := tt`) khi module dùng Go < 1.22, hoặc subtest song song dùng chung mock/state có thể bị sửa.
 - [cảnh báo] Test controller Gin không `gin.SetMode(gin.TestMode)` hoặc dựng server thật thay vì `httptest`.
 - [cảnh báo] Mock mockery tạo bằng `&mocks.X{}` mà không gọi `AssertExpectations(t)` (nên dùng `mocks.NewX(t)`).
-- [nit] Nhiều trường hợp cho cùng một hàm viết thành nhiều hàm test lặp thay vì table-driven với `t.Run(name, ...)` (Coding Standards §13 — BẮT BUỘC table-driven khi có nhiều case).
+- [chặn merge] Nhiều trường hợp cho cùng một hàm viết thành nhiều hàm test lặp thay vì table-driven với `t.Run(name, ...)` (Coding Standards §13 — BẮT BUỘC table-driven khi có nhiều case).
 - [nit] Tên hàm test không theo `TestXxx`/tên subtest không mô tả hành vi; file test khác package với source khi cần truy cập unexported.
 
 ## Cấu hình — CHỈ áp dụng khi diff có workflow CI, `Makefile`, `.golangci.yml`, `.mockery.yaml`

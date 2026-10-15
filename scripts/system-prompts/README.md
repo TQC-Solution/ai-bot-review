@@ -42,14 +42,14 @@ Nạp stack/rules theo cùng thứ tự, thay placeholder bằng `str.format`, n
 [Mục tiêu: chính xác, ít nhiễu, hành động được]
 === QUY TẮC CHUNG ===            {coding_stack}
 === KIẾN TRÚC & LUẬT RIÊNG ===   {coding_rules}
-=== THỨ TỰ ƯU TIÊN ===           dự án > chung > kinh nghiệm (chỉ bug/bảo mật)
+=== THỨ TỰ ƯU TIÊN ===           dự án (+ đặc thù repo trong CLAUDE.md) > chung > kinh nghiệm; cùng vi phạm khác nhãn → nhãn luật chung
 === PHẠM VI REVIEW ===           dòng +, dòng - (chỉ khi xoá cơ chế bảo vệ), bỏ file sinh tự động
 === XÁC MINH TRƯỚC KHI KẾT LUẬN === có công cụ → đọc file; chỉ có diff → không suy đoán "thiếu"
 === NHỮNG GÌ CẦN TÌM ===         bug → bảo mật → kiến trúc → xử lý lỗi → quy ước có nêu rõ
 === KHÔNG BÁO ===                context, nợ kỹ thuật, format, điều kiện "CHỈ áp dụng khi" không thoả
-=== MỨC ĐỘ ===                   theo nhãn [chặn merge]/[cảnh báo]/[nit]
+=== MỨC ĐỘ ===                   theo nhãn [chặn merge]/[cảnh báo]/[nit] = MUST/SHOULD/NOTE
 === TỰ KIỂM TRA ===              3 câu hỏi cho từng phát hiện
-=== YÊU CẦU ĐẦU RA ===           format + ví dụ
+=== YÊU CẦU ĐẦU RA ===           format mục (Vấn đề/Sửa) + khối tổng kết bắt buộc + ví dụ
 === CODE DIFF ===                {code_diff}
 ```
 
