@@ -23,6 +23,10 @@ inputs:
     description: "Ngôn ngữ review: vietnamese hoặc english"
     required: false
     default: "vietnamese"
+  claude-code-version:
+    description: "Phiên bản Claude Code CLI cài sẵn (để trống = bản stable mới nhất)"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -37,12 +41,22 @@ runs:
         REVIEW_LANGUAGE: ${{ inputs.review-language }}
       run: bash "$ACTION_PATH/scripts/system-prompts/build-prompt.sh"
 
+    # Cài trước với retry dài + fallback npm, tránh lỗi "Install failed with exit code 22"
+    # khi installer của claude-code-action bị claude.ai trả HTTP lỗi (429/403/5xx).
+    - name: Install Claude Code
+      id: install-claude
+      shell: bash
+      env:
+        CLAUDE_CODE_VERSION: ${{ inputs.claude-code-version }}
+      run: bash "${{ github.action_path }}/scripts/install-claude.sh"
+
     - name: Run Claude Code Review
       uses: anthropics/claude-code-action@v1
       with:
         claude_code_oauth_token: ${{ inputs.openrouter-api-key }}
         github_token: ${{ inputs.github-token }}
         track_progress: true
+        path_to_claude_code_executable: ${{ steps.install-claude.outputs.path }}
         prompt: ${{ steps.build-prompt.outputs.prompt }}
         claude_args: |
           --max-turns 25
