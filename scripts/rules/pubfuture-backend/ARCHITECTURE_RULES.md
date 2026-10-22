@@ -17,31 +17,31 @@ Backend tách bạch tầng HTTP, tầng nghiệp vụ và tầng truy cập d�
 ## 3. Luật review
 
 ### 3.1. Ranh giới tầng — `route → middleware → validator → controller → service/use-case → repository/client → DB/API ngoài`
-- [chặn merge] Controller MỚI query DB/model trực tiếp khi domain đã có service/repository.
-- [chặn merge] Service/use-case nhận `req`/`res` của Express hoặc gọi `res.*`.
-- [cảnh báo] Logic nghiệp vụ dài (nhiều nhánh, tính toán, phối hợp nhiều nguồn) nằm trong controller.
-- [cảnh báo] Service gọi HTTP raw (`axios`/`fetch`) tới bên thứ ba thay vì qua `integrations`/`clients`.
-- [cảnh báo] Middleware dùng chung chứa luật nghiệp vụ của một domain.
-- [cảnh báo] Copy logic giữa các module thay vì tách use-case/helper dùng chung — CHỈ khi diff hiện cả hai đoạn trùng.
+- [chặn merge] Controller MỚI query DB/model trực tiếp khi domain đã có service/repository. [📐 BE §2]
+- [chặn merge] Service/use-case nhận `req`/`res` của Express hoặc gọi `res.*`. [📐 BE §2]
+- [cảnh báo] Logic nghiệp vụ dài (nhiều nhánh, tính toán, phối hợp nhiều nguồn) nằm trong controller. [📐 BE §2; BE §3.3]
+- [cảnh báo] Service gọi HTTP raw (`axios`/`fetch`) tới bên thứ ba thay vì qua `integrations`/`clients`. [Dự án]
+- [cảnh báo] Middleware dùng chung chứa luật nghiệp vụ của một domain. [Dự án]
+- [cảnh báo] Copy logic giữa các module thay vì tách use-case/helper dùng chung — CHỈ khi diff hiện cả hai đoạn trùng. [📐 Core §1.2]
 
 ### 3.2. Validate, auth, response, lỗi
-- [cảnh báo] Endpoint MỚI nhận input không có validator theo thư viện dự án đang dùng.
-- [cảnh báo] Endpoint MỚI thao tác dữ liệu người dùng không có middleware auth như các route cùng domain — dạng câu hỏi nếu không rõ có public không.
-- [cảnh báo] Throw raw error/trả lỗi thủ công ra API thay vì để error handler tập trung map lỗi.
-- [cảnh báo] Response mới khác format response các endpoint cùng domain.
-- [cảnh báo] Đổi request/response shape, status code, auth behavior của API public mà PR không ghi rõ.
+- [cảnh báo] Endpoint MỚI nhận input không có validator theo thư viện dự án đang dùng. [📐 BE §3.2]
+- [cảnh báo] Endpoint MỚI thao tác dữ liệu người dùng không có middleware auth như các route cùng domain — dạng câu hỏi nếu không rõ có public không. [📐 BE §3.1; Core §5]
+- [cảnh báo] Throw raw error/trả lỗi thủ công ra API thay vì để error handler tập trung map lỗi. [📐 BE §5.2]
+- [cảnh báo] Response mới khác format response các endpoint cùng domain. [📐 BE §5.1]
+- [cảnh báo] Đổi request/response shape, status code, auth behavior của API public mà PR không ghi rõ. [📐 Core §4.3]
 
 ### 3.3. Dữ liệu & vận hành
-- [chặn merge] Migration mới thiếu `down`; đổi schema bảng đang dùng không backward compatible mà không có kế hoạch.
-- [cảnh báo] Ghi nhiều bảng không dùng transaction.
-- [cảnh báo] Sửa logging, metrics, queue, cron, cache làm thay đổi hành vi vận hành mà PR không nêu.
-- [cảnh báo] Token/key hardcode; đọc `process.env` ngoài `src/config`.
+- [chặn merge] Migration mới thiếu `down`; đổi schema bảng đang dùng không backward compatible mà không có kế hoạch. [📐 BE §6.2]
+- [cảnh báo] Ghi nhiều bảng không dùng transaction. [📐 BE §6.2]
+- [cảnh báo] Sửa logging, metrics, queue, cron, cache làm thay đổi hành vi vận hành mà PR không nêu. [Dự án]
+- [cảnh báo] Token/key hardcode; đọc `process.env` ngoài `src/config`. [📐 BE §9.2; Core §5]
 
 ### Test
 Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
 
 ## 4. Quy ước đặt tên
-- [nit] File theo domain + vai trò (`user.controller.ts`, `user.service.ts`, `user.repository.ts`), thống nhất với domain gần nhất.
+- [nit] File theo domain + vai trò (`user.controller.ts`, `user.service.ts`, `user.repository.ts`), thống nhất với domain gần nhất. [📐 BE §12.2]
 
 ## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
 - (Bổ sung tại đây các chỗ code cũ chưa theo chuẩn và các mẫu báo sai lặp lại mà dev đã xác nhận.)

@@ -24,45 +24,45 @@ Stack: Gin · MongoDB · Redis (qua Sentinel) · Kafka · Asynq · Google Wire. 
 ## 3. Luật review
 
 ### 3.1. Ranh giới tầng — `router → middleware → controller (bind + validate) → service → repository → MongoDB`
-- [chặn merge] Service hoặc repository nhận `*gin.Context`/import `gin`.
-- [chặn merge] Controller hoặc service gọi trực tiếp driver Mongo/Redis/Kafka thay vì qua repository/`internal/service` hạ tầng.
-- [chặn merge] Sửa tay `cmd/<app>/wire_gen.go` (diff đổi `wire_gen.go` mà không đổi `wire.go`).
-- [cảnh báo] Controller chứa logic nghiệp vụ (tính toán, gọi nhiều service, quyết định targeting).
-- [cảnh báo] Version mới hoặc API mới import chéo `service/` của version khác thay vì đưa phần dùng chung lên `internal/service/` hoặc `internal/binding/`.
-- [cảnh báo] Provider mới (controller/service/validation/repository) không được thêm vào `wire.Build(...)` — CHỈ báo khi diff có sửa `wire.go` mà thiếu provider đó.
+- [chặn merge] Service hoặc repository nhận `*gin.Context`/import `gin`. [📐 Go §2]
+- [chặn merge] Controller hoặc service gọi trực tiếp driver Mongo/Redis/Kafka thay vì qua repository/`internal/service` hạ tầng. [📐 Go §4.2]
+- [chặn merge] Sửa tay `cmd/<app>/wire_gen.go` (diff đổi `wire_gen.go` mà không đổi `wire.go`). [📐 Go §2.1]
+- [cảnh báo] Controller chứa logic nghiệp vụ (tính toán, gọi nhiều service, quyết định targeting). [📐 Go §3.3]
+- [cảnh báo] Version mới hoặc API mới import chéo `service/` của version khác thay vì đưa phần dùng chung lên `internal/service/` hoặc `internal/binding/`. [Dự án]
+- [cảnh báo] Provider mới (controller/service/validation/repository) không được thêm vào `wire.Build(...)` — CHỈ báo khi diff có sửa `wire.go` mà thiếu provider đó. [📐 Go §2.1]
 
 ### 3.2. Request, validate, response
-- [cảnh báo] DTO request mới không đặt trong `binding/` của version (hoặc `internal/binding/` nếu dùng chung); bind không dùng `ShouldBind*`.
-- [cảnh báo] Validate/parse query viết trong controller thay vì `validation/`.
-- [cảnh báo] Response không đi qua `common/api_response`; lỗi nghiệp vụ không dùng `common.NewAPIError(constant.ErrX)`; mã lỗi mới không thêm vào `config/constant/error_code.go`.
-- [cảnh báo] Đổi shape response của `v1`/`v3`/`v4` đang dùng (field, kiểu, status) — contract với ad tag phía trình duyệt.
+- [cảnh báo] DTO request mới không đặt trong `binding/` của version (hoặc `internal/binding/` nếu dùng chung); bind không dùng `ShouldBind*`. [📐 Go §3.1]
+- [cảnh báo] Validate/parse query viết trong controller thay vì `validation/`. [📐 Go §3.2]
+- [cảnh báo] Response không đi qua `common/api_response`; lỗi nghiệp vụ không dùng `common.NewAPIError(constant.ErrX)`; mã lỗi mới không thêm vào `config/constant/error_code.go`. [📐 Go §5]
+- [cảnh báo] Đổi shape response của `v1`/`v3`/`v4` đang dùng (field, kiểu, status) — contract với ad tag phía trình duyệt. [📐 Core §4.3]
 
 ### 3.3. Lỗi, context, concurrency
-- [chặn merge] `panic` trong luồng request/job (recovery middleware chỉ là lưới an toàn).
-- [chặn merge] Goroutine mới không dừng theo `ctx.Done()`/shutdown.
-- [cảnh báo] Không bọc lỗi bằng `%w`; so sánh lỗi bằng chuỗi.
-- [cảnh báo] Hàm I/O mới không nhận `context.Context` làm tham số đầu; dùng `context.Background()` giữa luồng request.
-- [cảnh báo] Client/consumer mới không được đóng trong `Server.Stop`.
+- [chặn merge] `panic` trong luồng request/job (recovery middleware chỉ là lưới an toàn). [📐 Go §6]
+- [chặn merge] Goroutine mới không dừng theo `ctx.Done()`/shutdown. [📐 Go §7]
+- [cảnh báo] Không bọc lỗi bằng `%w`; so sánh lỗi bằng chuỗi. [📐 Go §6]
+- [cảnh báo] Hàm I/O mới không nhận `context.Context` làm tham số đầu; dùng `context.Background()` giữa luồng request. [📐 Go §7]
+- [cảnh báo] Client/consumer mới không được đóng trong `Server.Stop`. [📐 Go §7]
 
 ### 3.4. Worker, Kafka, Redis
-- [cảnh báo] Task Asynq mới: tên không định nghĩa trong `internal/config/constant/asynq.go`; handler không đặt trong `internal/app/worker/handler/` hoặc không đăng ký trong mux của `service.go`; provider không thêm vào `cmd/worker/wire.go` — CHỈ báo phần xác minh được.
-- [cảnh báo] Task/consumer không idempotent; `Enqueue` không cấu hình `MaxRetry`.
-- [cảnh báo] Topic Kafka là chuỗi literal thay vì hằng trong `constant/`.
-- [cảnh báo] Kết nối Redis kiểu `host:port` trực tiếp thay vì Sentinel (`SENTINEL_LIST`, `SENTINEL_NAME`).
+- [cảnh báo] Task Asynq mới: tên không định nghĩa trong `internal/config/constant/asynq.go`; handler không đặt trong `internal/app/worker/handler/` hoặc không đăng ký trong mux của `service.go`; provider không thêm vào `cmd/worker/wire.go` — CHỈ báo phần xác minh được. [📐 Go §9]
+- [cảnh báo] Task/consumer không idempotent; `Enqueue` không cấu hình `MaxRetry`. [📐 Go §9]
+- [cảnh báo] Topic Kafka là chuỗi literal thay vì hằng trong `constant/`. [📐 Go §10]
+- [cảnh báo] Kết nối Redis kiểu `host:port` trực tiếp thay vì Sentinel (`SENTINEL_LIST`, `SENTINEL_NAME`). [Dự án]
 
 ### 3.5. Cấu hình & log
-- [cảnh báo] Biến môi trường mới không khai báo trong struct `config.go` (với `,required` nếu bắt buộc) và `.env.example`.
-- [cảnh báo] `os.Getenv` rải rác; `fmt.Println`/`log.Print*` thay vì logger của dự án.
-- [nit] Symbol exported mới thiếu GoDoc.
+- [cảnh báo] Biến môi trường mới không khai báo trong struct `config.go` (với `,required` nếu bắt buộc) và `.env.example`. [📐 Go §11; Core §9]
+- [cảnh báo] `os.Getenv` rải rác; `fmt.Println`/`log.Print*` thay vì logger của dự án. [📐 Go §11]
+- [nit] Symbol exported mới thiếu GoDoc. [📐 Go §12]
 
 ### 3.6. Test
 Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
-- [cảnh báo] Sửa logic phân giải config `v4` (targeting, frequency, blocklist, passback) mà PR không có test cho nhánh thay đổi — CHỈ khi thay đổi đổi hành vi (thêm/sửa nhánh, điều kiện, ngưỡng, kết quả) VÀ PR không thêm/sửa case test nào cho phần đó VÀ (nếu đọc được repo) test hiện có chưa kiểm hành vi mới; refactor không đổi hành vi thì KHÔNG báo.
-- [nit] Test controller version mới không dùng `httptest` + `gin.TestMode` qua router của version đó.
+- [cảnh báo] Sửa logic phân giải config `v4` (targeting, frequency, blocklist, passback) mà PR không có test cho nhánh thay đổi — CHỈ khi thay đổi đổi hành vi (thêm/sửa nhánh, điều kiện, ngưỡng, kết quả) VÀ PR không thêm/sửa case test nào cho phần đó VÀ (nếu đọc được repo) test hiện có chưa kiểm hành vi mới; refactor không đổi hành vi thì KHÔNG báo. [📐 Test Go §7.1]
+- [nit] Test controller version mới không dùng `httptest` + `gin.TestMode` qua router của version đó. [📐 Test Go §3]
 
 ## 4. Quy ước đặt tên
-- [nit] File `snake_case.go`; package chữ thường không gạch dưới; constructor `NewXxx`; viết tắt đúng chữ hoa (`ID`, `URL`, `HTTP`).
-- [nit] Router version mới đặt tên `router_v{N}.go`, struct `RouterV{N}`.
+- [nit] File `snake_case.go`; package chữ thường không gạch dưới; constructor `NewXxx`; viết tắt đúng chữ hoa (`ID`, `URL`, `HTTP`). [📐 Go §12]
+- [nit] Router version mới đặt tên `router_v{N}.go`, struct `RouterV{N}`. [Dự án]
 
 ## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
 - `v1` là API legacy: không đề xuất refactor `v1` khi PR không yêu cầu.

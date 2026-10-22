@@ -61,7 +61,13 @@ Nạp stack/rules theo cùng thứ tự, thay placeholder bằng `str.format`, n
 4. **Mục "Ngoại lệ / nợ kỹ thuật đã biết"** trong mỗi `rules/<project>/ARCHITECTURE_RULES.md`: liệt kê chỗ code cũ sai có chủ đích. Mỗi lần dev đánh dấu một comment là báo sai lặp lại, thêm mẫu đó vào đây.
 5. **Mục "Nguyên tắc khi AI sửa/sinh code"** là hướng dẫn sinh code, AI không dùng để báo lỗi review.
 6. **Không nhập vai trong file luật** ("Bạn là ..."): file luật chỉ chứa danh sách luật; vai trò nằm ở template.
-7. Muốn AI bắt thêm loại lỗi → sửa `stacks/` hoặc `rules/`, không nhồi vào template (template dùng chung mọi dự án).
+7. **Gắn thẻ căn cứ cuối mỗi luật có nhãn**: AI review ghi "Căn cứ" theo mục của bản Coding/Test Standard trên Drive, không theo số mục của file trong repo. Mỗi luật kết thúc bằng một thẻ:
+   - `[📐 BE §5.1]`, `[📐 Go §6; Core §5]`: mục trong bản Code Standard (mã tài liệu, link và tên mục nằm ở bảng "Tài liệu căn cứ" trong `stacks/core/core.md`).
+   - `[📐 Test Node §7.4]`, `[📐 Test FE §7.1]`: mục trong bản Test Standard.
+   - `[📐 SDK §1.3, suy ra]`: suy ra từ nguyên tắc của mục đó (ví dụ SDK web suy từ bản SDK mobile).
+   - `[Dự án]`: luật kiến trúc riêng của dự án, không có trong Code Standard → AI ghi "Kiến trúc dự án".
+   Không ghi số mục tài liệu vào tiêu đề `##` (AI dễ trích nhầm). Khi Drive đổi số mục, sửa thẻ và bảng trong `core.md`.
+8. Muốn AI bắt thêm loại lỗi → sửa `stacks/` hoặc `rules/`, không nhồi vào template (template dùng chung mọi dự án).
 
 ## Cách tùy chỉnh
 

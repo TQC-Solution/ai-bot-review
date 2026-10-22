@@ -25,35 +25,35 @@ feature/
 ## 2. Luật review
 
 ### 2.1. Dependency rule
-- [chặn merge] File trong `domain/` import `data/` hoặc `presentation/`.
-- [chặn merge] Presentation import `data/models/`, dùng Model, mapper hoặc `ApiService`.
-- [chặn merge] Controller gọi API trực tiếp thay vì repository/usecase.
+- [chặn merge] File trong `domain/` import `data/` hoặc `presentation/`. [📐 Flutter §2]
+- [chặn merge] Presentation import `data/models/`, dùng Model, mapper hoặc `ApiService`. [📐 Flutter §2]
+- [chặn merge] Controller gọi API trực tiếp thay vì repository/usecase. [📐 Flutter §2]
 
 ### 2.2. Domain & data
-- [cảnh báo] Entity có `fromJson`/`toJson`; field không `final`; thiếu `@immutable`.
-- [cảnh báo] Model có business logic/computed getter.
-- [cảnh báo] Repository impl trả Model thay vì Entity; map Model → Entity ngoài mapper.
-- [cảnh báo] Repository interface/impl mới không trả `Either<Failure, T>`; impl không bọc try/catch → `Left(Failure)`; throw raw exception ra UI.
+- [cảnh báo] Entity có `fromJson`/`toJson`; field không `final`; thiếu `@immutable`. [📐 Flutter §3]
+- [cảnh báo] Model có business logic/computed getter. [📐 Flutter §4]
+- [cảnh báo] Repository impl trả Model thay vì Entity; map Model → Entity ngoài mapper. [📐 Flutter §4]
+- [cảnh báo] Repository interface/impl mới không trả `Either<Failure, T>`; impl không bọc try/catch → `Left(Failure)`; throw raw exception ra UI. [📐 Flutter §4; Flutter §10]
 
 ### 2.3. Presentation
-- [chặn merge] Controller tạo `TextEditingController`/`FocusNode`/subscription/`Timer` không giải phóng trong `onClose()`.
-- [cảnh báo] Controller không xử lý nhánh lỗi của `fold` (bỏ qua failure).
-- [cảnh báo] `Loading.show()` không có `Loading.hide()` trong `finally`.
-- [cảnh báo] Điều hướng bằng chuỗi literal thay vì `RouterName.*`.
-- [cảnh báo] Đăng ký dependency ngoài `service_locator.dart` hoặc tự `new` repository/usecase trong controller/widget.
-- [nit] Widget nhận Model hoặc dữ liệu thô thay vì Entity.
+- [chặn merge] Controller tạo `TextEditingController`/`FocusNode`/subscription/`Timer` không giải phóng trong `onClose()`. [📐 Flutter §5]
+- [cảnh báo] Controller không xử lý nhánh lỗi của `fold` (bỏ qua failure). [📐 Flutter §10]
+- [cảnh báo] `Loading.show()` không có `Loading.hide()` trong `finally`. [📐 Flutter §10]
+- [cảnh báo] Điều hướng bằng chuỗi literal thay vì `RouterName.*`. [📐 Flutter §6]
+- [cảnh báo] Đăng ký dependency ngoài `service_locator.dart` hoặc tự `new` repository/usecase trong controller/widget. [📐 Flutter §6]
+- [nit] Widget nhận Model hoặc dữ liệu thô thay vì Entity. [📐 Flutter §2]
 
 ### 2.4. Coding standards
-- [cảnh báo] Hardcode asset path (`'assets/...'`) thay vì `Assets.*`.
-- [cảnh báo] Text hiển thị hardcode thay vì `context.tr(...)`; key i18n mới không thêm đủ các file locale — CHỈ báo khi xác minh được.
-- [cảnh báo] `Color(0x...)`/`Colors.*`, `TextStyle(...)` rời, `SizedBox` với số tuỳ ý thay vì `AppColors`/`context.textStyle`/`AppValue`.
-- [cảnh báo] `print()` trong code; log token/PII; lưu token bằng SharedPreferences/Hive thay vì secure storage.
-- [nit] File/class/method không theo quy ước §3.
+- [cảnh báo] Hardcode asset path (`'assets/...'`) thay vì `Assets.*`. [📐 Flutter §8]
+- [cảnh báo] Text hiển thị hardcode thay vì `context.tr(...)`; key i18n mới không thêm đủ các file locale — CHỈ báo khi xác minh được. [📐 Flutter §9]
+- [cảnh báo] `Color(0x...)`/`Colors.*`, `TextStyle(...)` rời, `SizedBox` với số tuỳ ý thay vì `AppColors`/`context.textStyle`/`AppValue`. [📐 Flutter §9]
+- [cảnh báo] `print()` trong code; log token/PII; lưu token bằng SharedPreferences/Hive thay vì secure storage. [📐 Flutter §8; Flutter §12]
+- [nit] File/class/method không theo quy ước §3. [📐 Flutter §8; Core §2]
 
 ### 2.5. Test
 Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
-- [cảnh báo] Repository impl mới mà test không có đủ: `res['success'] == true` → `Right` qua mapper; `success != true` → `Left(ServerFailure)`; exception → `Left`.
-- [nit] Test mapper không có case field null/thiếu.
+- [cảnh báo] Repository impl mới mà test không có đủ: `res['success'] == true` → `Right` qua mapper; `success != true` → `Left(ServerFailure)`; exception → `Left`. [📐 Test Flutter §7.1]
+- [nit] Test mapper không có case field null/thiếu. [📐 Test Flutter §7.1]
 
 ## 3. Quy ước đặt tên
 - File snake_case: `*_screen.dart`, `*_controller.dart`, `*_widget.dart`, `dialog_*.dart`, `*_entity.dart`, `*_model.dart`/`*_response.dart`, `*_usecase.dart`, `*_repository.dart`/`*_repository_impl.dart`, `*_mapper.dart`.

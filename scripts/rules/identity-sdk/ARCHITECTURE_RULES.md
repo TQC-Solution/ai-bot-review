@@ -23,39 +23,39 @@ Build: TypeScript ES2020 strict (`noUnusedLocals`, `noUnusedParameters`) → Vit
 ## 3. Luật review
 
 ### 3.1. Chiều phụ thuộc — `collectors → core.ts → idt/ ivt → index.ts`
-- [chặn merge] Collector import `idt/`, `ivt/`, `core.ts`; `idt/` và `ivt/` import lẫn nhau; file khác ngoài `index.ts` gán lên `window`.
-- [chặn merge] Collector tự gọi `patchClientGroup()`; file khác ngoài `collectors/core/` đọc/ghi trực tiếp `sharedData`; file khác ngoài `js.ts` đóng vai trò orchestrator.
-- [cảnh báo] `idt/`/`ivt/` đọc `window.__TQC_IDENTITY_SIGNALS__` hoặc `getSharedData()` thay vì `getDatas()`.
-- [cảnh báo] URL endpoint xuất hiện ngoài `src/api/`.
+- [chặn merge] Collector import `idt/`, `ivt/`, `core.ts`; `idt/` và `ivt/` import lẫn nhau; file khác ngoài `index.ts` gán lên `window`. [Dự án]
+- [chặn merge] Collector tự gọi `patchClientGroup()`; file khác ngoài `collectors/core/` đọc/ghi trực tiếp `sharedData`; file khác ngoài `js.ts` đóng vai trò orchestrator. [Dự án]
+- [cảnh báo] `idt/`/`ivt/` đọc `window.__TQC_IDENTITY_SIGNALS__` hoặc `getSharedData()` thay vì `getDatas()`. [Dự án]
+- [cảnh báo] URL endpoint xuất hiện ngoài `src/api/`. [Dự án]
 
 ### 3.2. Fail-safe & hiệu năng trang host
-- [chặn merge] Collector/API mới có thể throw: browser API không feature-check, storage (`sessionStorage`, `localStorage`, `IndexedDB`, cookie) không try/catch, lỗi mạng không bắt. Collector lỗi phải trả `null`.
-- [chặn merge] Chặn main thread hoặc page load: `await` collector nặng (canvas, WebGL, audio, GPU, WebRTC, font) ở phase sync thay vì `asyncTasks[]`; synchronous XHR; auto-run trước khi `readyState` là `interactive`/`complete`.
-- [cảnh báo] Collector có thể treo (WebRTC, permission, media devices) không có timeout nội bộ trả `null`.
-- [cảnh báo] Cache/memoize behavioral data vào biến module (phải đọc live qua `getBehavioralData()`).
-- [cảnh báo] Dùng `sendBeacon` cho POST thường (chỉ dùng cho unload path); dùng `saveSignalDatas()` deprecated trong code mới.
+- [chặn merge] Collector/API mới có thể throw: browser API không feature-check, storage (`sessionStorage`, `localStorage`, `IndexedDB`, cookie) không try/catch, lỗi mạng không bắt. Collector lỗi phải trả `null`. [📐 SDK §1.4, suy ra]
+- [chặn merge] Chặn main thread hoặc page load: `await` collector nặng (canvas, WebGL, audio, GPU, WebRTC, font) ở phase sync thay vì `asyncTasks[]`; synchronous XHR; auto-run trước khi `readyState` là `interactive`/`complete`. [📐 SDK §1.3, suy ra]
+- [cảnh báo] Collector có thể treo (WebRTC, permission, media devices) không có timeout nội bộ trả `null`. [Dự án]
+- [cảnh báo] Cache/memoize behavioral data vào biến module (phải đọc live qua `getBehavioralData()`). [Dự án]
+- [cảnh báo] Dùng `sendBeacon` cho POST thường (chỉ dùng cho unload path); dùng `saveSignalDatas()` deprecated trong code mới. [Dự án]
 
 ### 3.3. Schema & public API
-- [chặn merge] Thêm top-level field hoặc group mới vào `NormalizedPayload` (6 group cố định: `device`, `environment`, `network_probes`, `behavioral`, `identity`, `page_context`).
-- [chặn merge] Đổi tên/signature hoặc bỏ hàm public của `window.TQC_Identity_SKD` mà PR không ghi là breaking change.
-- [cảnh báo] Đổi schema `NormalizedPayload`/`DCEClient*` mà PR không nêu đã phối hợp backend parser.
-- [cảnh báo] Field mới dùng `undefined`/optional thay vì `T | null` (primitive) hoặc `T[]` (array).
-- [cảnh báo] Hàm mới expose ra `TQC_Identity_SKD` không có flag trong `SdkFeatureFlags` (`types.ts`) và `sdkConfig.features` (`config.ts`).
-- [cảnh báo] `IdtModule` gửi toàn bộ `NormalizedPayload` thay vì fingerprint summary.
+- [chặn merge] Thêm top-level field hoặc group mới vào `NormalizedPayload` (6 group cố định: `device`, `environment`, `network_probes`, `behavioral`, `identity`, `page_context`). [Dự án]
+- [chặn merge] Đổi tên/signature hoặc bỏ hàm public của `window.TQC_Identity_SKD` mà PR không ghi là breaking change. [📐 SDK §1.1, suy ra]
+- [cảnh báo] Đổi schema `NormalizedPayload`/`DCEClient*` mà PR không nêu đã phối hợp backend parser. [Dự án]
+- [cảnh báo] Field mới dùng `undefined`/optional thay vì `T | null` (primitive) hoặc `T[]` (array). [Dự án]
+- [cảnh báo] Hàm mới expose ra `TQC_Identity_SKD` không có flag trong `SdkFeatureFlags` (`types.ts`) và `sdkConfig.features` (`config.ts`). [Dự án]
+- [cảnh báo] `IdtModule` gửi toàn bộ `NormalizedPayload` thay vì fingerprint summary. [Dự án]
 
 ### 3.4. Dependency, bảo mật, TypeScript
-- [chặn merge] Thêm package vào `dependencies`; dùng Node.js API trong `src/`.
-- [chặn merge] Gửi/log raw PII thay vì hash; consent level không được kiểm tra trước khi thu thập/gửi signal cần consent — CHỈ khi diff cho thấy rõ bỏ qua `Gatekeeper`.
-- [cảnh báo] Canonical signal type khai báo ngoài `types.ts`; build-time constant không `declare const __XYZ__: string` hoặc không định nghĩa trong `vite.config.ts`.
+- [chặn merge] Thêm package vào `dependencies`; dùng Node.js API trong `src/`. [Dự án]
+- [chặn merge] Gửi/log raw PII thay vì hash; consent level không được kiểm tra trước khi thu thập/gửi signal cần consent — CHỈ khi diff cho thấy rõ bỏ qua `Gatekeeper`. [📐 Core §5; Core §7]
+- [cảnh báo] Canonical signal type khai báo ngoài `types.ts`; build-time constant không `declare const __XYZ__: string` hoặc không định nghĩa trong `vite.config.ts`. [Dự án]
 
 ### 3.5. Test
 Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
-- [cảnh báo] Collector mới mà test không có case browser API không tồn tại/throw → trả `null`; collector có timeout mà test không kiểm quá giờ → `null` (dùng fake timers).
-- [cảnh báo] Thay đổi `NormalizedPayload`/`DCEClient*` hoặc payload `IdtModule`/`IvtModule` mà test không assert shape payload gửi đi.
-- [nit] Test `idt/`/`ivt/` đọc `sharedData` trực tiếp thay vì stub `getDatas()`.
+- [cảnh báo] Collector mới mà test không có case browser API không tồn tại/throw → trả `null`; collector có timeout mà test không kiểm quá giờ → `null` (dùng fake timers). [📐 Test FE §7.1, suy ra]
+- [cảnh báo] Thay đổi `NormalizedPayload`/`DCEClient*` hoặc payload `IdtModule`/`IvtModule` mà test không assert shape payload gửi đi. [📐 Test FE §7.1, suy ra]
+- [nit] Test `idt/`/`ivt/` đọc `sharedData` trực tiếp thay vì stub `getDatas()`. [📐 Test FE §2.5, suy ra]
 
 ## 4. Quy ước đặt tên
-- [nit] File collector camelCase theo chức năng; hàm collector prefix `collect` (trừ `getBehavioralData`); interface group prefix `DCEClient`; constant `UPPER_SNAKE_CASE`.
+- [nit] File collector camelCase theo chức năng; hàm collector prefix `collect` (trừ `getBehavioralData`); interface group prefix `DCEClient`; constant `UPPER_SNAKE_CASE`. [Dự án]
 
 ## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
 - `saveSignalDatas()` còn trong code (đã `@deprecated`).

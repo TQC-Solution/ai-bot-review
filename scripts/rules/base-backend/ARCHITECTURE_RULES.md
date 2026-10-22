@@ -19,65 +19,65 @@ Nhãn mức độ: [chặn merge] = 🔴 · [cảnh báo] = ⚠️ · [nit] = �
 ## 3. Luật review
 
 ### 3.1. Ranh giới tầng — `route → AuthMiddleware → validate → controller → biz → repo → model`
-- [chặn merge] Controller gọi trực tiếp repo/model/Mongoose/Sequelize, hoặc tự build query.
-- [chặn merge] Biz import/nhận `Request`/`Response` của express hoặc gọi `res.status()`/`res.json()`.
-- [chặn merge] Trả thẳng document/instance ORM ra client không qua mapper/transform; response chứa `password`.
-- [cảnh báo] Logic nghiệp vụ (điều kiện, tính toán, gọi nhiều repo) nằm trong route/controller.
-- [cảnh báo] Biz `*.biz.ts` MỚI import trực tiếp model/ORM thay vì qua repo.
-- [cảnh báo] Repo chứa if nghiệp vụ hoặc `throw CustomError/APIError` (repo trả `null`/`false`/`[]`, biz quyết định).
-- [cảnh báo] Import tương đối xuyên tầng (`../../biz/...`) hoặc dùng alias `@/*`.
+- [chặn merge] Controller gọi trực tiếp repo/model/Mongoose/Sequelize, hoặc tự build query. [📐 BE §2]
+- [chặn merge] Biz import/nhận `Request`/`Response` của express hoặc gọi `res.status()`/`res.json()`. [📐 BE §2]
+- [chặn merge] Trả thẳng document/instance ORM ra client không qua mapper/transform; response chứa `password`. [📐 BE §2; BE §4.3]
+- [cảnh báo] Logic nghiệp vụ (điều kiện, tính toán, gọi nhiều repo) nằm trong route/controller. [📐 BE §2; BE §3.3]
+- [cảnh báo] Biz `*.biz.ts` MỚI import trực tiếp model/ORM thay vì qua repo. [📐 BE §4.1]
+- [cảnh báo] Repo chứa if nghiệp vụ hoặc `throw CustomError/APIError` (repo trả `null`/`false`/`[]`, biz quyết định). [📐 BE §4.2]
+- [cảnh báo] Import tương đối xuyên tầng (`../../biz/...`) hoặc dùng alias `@/*`. [📐 BE §1]
 
 ### 3.2. Route, validate, controller
-- [chặn merge] Method controller MỚI (thân hàm hiện đầy đủ trong diff) có `await` nhưng không bọc `try { ... } catch (error) { next(error) }` — base không có async error handler, thiếu sẽ treo request và có thể làm sập process.
-- [cảnh báo] Route MỚI nhận body/query/params mà dòng khai báo route không có `validate(...)`.
-- [cảnh báo] `validate(schema)` thiếu `{ context: true }` (không có thì `.default()` và ép kiểu của Joi không được ghi vào `req`).
-- [cảnh báo] Dùng `express-validator`, `matchedData`, `validationResult`, hoặc tự viết middleware validate.
-- [cảnh báo] Lấy id người dùng hiện tại từ body/query thay vì `req.userId`.
-- [cảnh báo] Endpoint MỚI cần bảo vệ (thao tác dữ liệu của user) mà route không gắn `AuthMiddleware.requireAuth` — hỏi nếu không rõ endpoint có public hay không.
+- [chặn merge] Method controller MỚI (thân hàm hiện đầy đủ trong diff) có `await` nhưng không bọc `try { ... } catch (error) { next(error) }` — base không có async error handler, thiếu sẽ treo request và có thể làm sập process. [📐 BE §3.3]
+- [cảnh báo] Route MỚI nhận body/query/params mà dòng khai báo route không có `validate(...)`. [📐 BE §3.2]
+- [cảnh báo] `validate(schema)` thiếu `{ context: true }` (không có thì `.default()` và ép kiểu của Joi không được ghi vào `req`). [📐 BE §3.2]
+- [cảnh báo] Dùng `express-validator`, `matchedData`, `validationResult`, hoặc tự viết middleware validate. [📐 BE §3.2]
+- [cảnh báo] Lấy id người dùng hiện tại từ body/query thay vì `req.userId`. [📐 BE §3.3]
+- [cảnh báo] Endpoint MỚI cần bảo vệ (thao tác dữ liệu của user) mà route không gắn `AuthMiddleware.requireAuth` — hỏi nếu không rõ endpoint có public hay không. [📐 BE §3.1; Core §5]
 
 ### 3.3. Response & lỗi
-- [cảnh báo] Gọi `res.json()`/`res.send()`/`res.status()` trực tiếp (ngoại lệ: health check `GET /status`).
-- [cảnh báo] `res.sendJson(...)` truyền array/primitive, truyền 2 tham số, hoặc truyền object không có khoá `data` (field sẽ đổ thẳng vào root envelope).
-- [cảnh báo] `CustomError.CustomMessage(...)` trong code mới — dùng `CustomError.BadRequest(MESSAGE_CONST, ErrorCode.X)` để client phân biệt được lỗi.
-- [cảnh báo] errorCode là số trần thay vì `ErrorCode.X`; message là chuỗi viết trực tiếp thay vì hằng số trong `common/message.response.ts`.
-- [cảnh báo] Trả lỗi thủ công (`res.status(400).json(...)`) thay vì `throw` để `ResponseMiddleware` xử lý.
+- [cảnh báo] Gọi `res.json()`/`res.send()`/`res.status()` trực tiếp (ngoại lệ: health check `GET /status`). [📐 BE §5.1]
+- [cảnh báo] `res.sendJson(...)` truyền array/primitive, truyền 2 tham số, hoặc truyền object không có khoá `data` (field sẽ đổ thẳng vào root envelope). [📐 BE §5.1]
+- [cảnh báo] `CustomError.CustomMessage(...)` trong code mới — dùng `CustomError.BadRequest(MESSAGE_CONST, ErrorCode.X)` để client phân biệt được lỗi. [📐 BE §5.2]
+- [cảnh báo] errorCode là số trần thay vì `ErrorCode.X`; message là chuỗi viết trực tiếp thay vì hằng số trong `common/message.response.ts`. [📐 BE §5.2; BE §4.1]
+- [cảnh báo] Trả lỗi thủ công (`res.status(400).json(...)`) thay vì `throw` để `ResponseMiddleware` xử lý. [📐 BE §5.2]
 
 ### 3.4. Dữ liệu
-- [chặn merge] Dùng `sequelize.sync({ alter })` / `sync({ force })`.
-- [chặn merge] Migration mới thiếu hàm `down`.
-- [cảnh báo] Diff đổi Sequelize model (thêm/xoá cột) mà không có migration trong diff — viết dưới dạng câu hỏi.
-- [cảnh báo] Thao tác ghi nhiều bảng Postgres liên tiếp không dùng `transaction`.
-- [cảnh báo] Schema Mongoose mới thiếu `timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }`; model Sequelize mới thiếu `underscored: true`/`timestamps`/`tableName`.
-- [nit] Query Mongo chỉ đọc không dùng `.lean()`; API danh sách không dùng plugin `paginate`.
+- [chặn merge] Dùng `sequelize.sync({ alter })` / `sync({ force })`. [📐 BE §6.2]
+- [chặn merge] Migration mới thiếu hàm `down`. [📐 BE §6.2]
+- [cảnh báo] Diff đổi Sequelize model (thêm/xoá cột) mà không có migration trong diff — viết dưới dạng câu hỏi. [📐 BE §6.2]
+- [cảnh báo] Thao tác ghi nhiều bảng Postgres liên tiếp không dùng `transaction`. [📐 BE §6.2]
+- [cảnh báo] Schema Mongoose mới thiếu `timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }`; model Sequelize mới thiếu `underscored: true`/`timestamps`/`tableName`. [📐 BE §6.1; BE §6.2]
+- [nit] Query Mongo chỉ đọc không dùng `.lean()`; API danh sách không dùng plugin `paginate`. [📐 BE §6.1]
 
 ### 3.5. EventBus & worker
-- [chặn merge] Event handler async MỚI không tự `try/catch` toàn thân hàm (EventBus không bắt lỗi → unhandled rejection làm shutdown process).
-- [chặn merge] Job handler MỚI không có `try/catch` hoặc không gọi `done()` khi xong / `done(error)` khi lỗi (job treo ở trạng thái active).
-- [cảnh báo] Tên event không theo mẫu `'event.<domain>.<pastTense>'`; `EventBus.on(...)` ngoài file `*.event.ts`.
-- [cảnh báo] Emit instance ORM thay vì DTO đã transform.
-- [cảnh báo] Dùng EventBus cho việc cần retry/bền vững (gửi email, gọi API ngoài) — nên dùng Bull job.
-- [cảnh báo] Tên queue là chuỗi literal thay vì hằng số trong `config/jobs.ts`; payload job chứa object lớn thay vì id; job không idempotent.
-- [cảnh báo] Class event/job MỚI nhưng diff có sửa `application.ts`/`worker/router.ts` mà không đăng ký class đó.
+- [chặn merge] Event handler async MỚI không tự `try/catch` toàn thân hàm (EventBus không bắt lỗi → unhandled rejection làm shutdown process). [📐 BE §7]
+- [chặn merge] Job handler MỚI không có `try/catch` hoặc không gọi `done()` khi xong / `done(error)` khi lỗi (job treo ở trạng thái active). [📐 BE §8]
+- [cảnh báo] Tên event không theo mẫu `'event.<domain>.<pastTense>'`; `EventBus.on(...)` ngoài file `*.event.ts`. [📐 BE §7]
+- [cảnh báo] Emit instance ORM thay vì DTO đã transform. [📐 BE §7]
+- [cảnh báo] Dùng EventBus cho việc cần retry/bền vững (gửi email, gọi API ngoài) — nên dùng Bull job. [📐 BE §7; BE §8]
+- [cảnh báo] Tên queue là chuỗi literal thay vì hằng số trong `config/jobs.ts`; payload job chứa object lớn thay vì id; job không idempotent. [📐 BE §8]
+- [cảnh báo] Class event/job MỚI nhưng diff có sửa `application.ts`/`worker/router.ts` mà không đăng ký class đó. [📐 BE §7; BE §8]
 
 ### 3.6. Log, cấu hình, bảo mật
-- [chặn merge] Lưu mật khẩu chưa băm (bcrypt/argon2) xuống DB.
-- [chặn merge] Log `req.body`, header `authorization`, password, token mà không mask.
-- [cảnh báo] `console.*` trong `src/` (ngoại trừ `src/migrations/`) — dùng `import logger from '@common/logger'`.
-- [cảnh báo] Import logger dạng named (`import { logger } from '@common/logger'`) — logger là default export.
-- [cảnh báo] Đọc `process.env.X` ngoài `src/config/`; tự `new Sequelize`/`new Redis`/`mongoose.connect` ngoài `common/infrastructure`.
-- [cảnh báo] `Jwt.sign(...)` không truyền `expiresIn`.
+- [chặn merge] Lưu mật khẩu chưa băm (bcrypt/argon2) xuống DB. [📐 BE §10; Core §5]
+- [chặn merge] Log `req.body`, header `authorization`, password, token mà không mask. [📐 BE §10; Core §7]
+- [cảnh báo] `console.*` trong `src/` (ngoại trừ `src/migrations/`) — dùng `import logger from '@common/logger'`. [📐 BE §9.1]
+- [cảnh báo] Import logger dạng named (`import { logger } from '@common/logger'`) — logger là default export. [📐 BE §9.1]
+- [cảnh báo] Đọc `process.env.X` ngoài `src/config/`; tự `new Sequelize`/`new Redis`/`mongoose.connect` ngoài `common/infrastructure`. [📐 BE §9.2]
+- [cảnh báo] `Jwt.sign(...)` không truyền `expiresIn`. [📐 BE §10]
 
 ### 3.7. Test
 Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
 - Hai tầng test hợp lệ: API-level `src/api/<domain>/__tests__/<domain>.<endpoint>.test.ts` (supertest, mock biz/repo) và biz-level (gọi thẳng `<Domain>Biz`, mock repo).
-- [cảnh báo] Test API mock thẳng Mongoose/Sequelize model thay vì repo (`*.repo.ts`); test biz gọi repo thật.
-- [cảnh báo] Test API không assert envelope `res.sendJson` (`error_code`, `data`) hoặc mã lỗi `ErrorCode.X` của nhánh lỗi.
-- [nit] Endpoint có `AuthMiddleware.requireAuth` mà test thiếu case không token (401).
+- [cảnh báo] Test API mock thẳng Mongoose/Sequelize model thay vì repo (`*.repo.ts`); test biz gọi repo thật. [📐 Test Node §7.1]
+- [cảnh báo] Test API không assert envelope `res.sendJson` (`error_code`, `data`) hoặc mã lỗi `ErrorCode.X` của nhánh lỗi. [📐 Test Node §6]
+- [nit] Endpoint có `AuthMiddleware.requireAuth` mà test thiếu case không token (401). [📐 Test Node §6]
 
 ## 4. Quy ước đặt tên
-- [nit] File theo mẫu `<domain>.<layer>.ts` (`user.biz.ts`, `user-postgres.repo.ts`); Mongoose model PascalCase (`User.ts`). Domain MỚI dùng `*.biz.ts` / class `<Domain>Biz`, không tạo thêm `*.service.ts`.
-- [nit] Class PascalCase với static method (`UserBiz`, `UserRepo`, `UserMapper`); interface tiền tố `I`, enum tiền tố `E`; hằng số message/event UPPER_SNAKE_CASE.
-- [nit] `export default` chỉ dùng cho router của domain, `logger`, model Mongoose.
+- [nit] File theo mẫu `<domain>.<layer>.ts` (`user.biz.ts`, `user-postgres.repo.ts`); Mongoose model PascalCase (`User.ts`). Domain MỚI dùng `*.biz.ts` / class `<Domain>Biz`, không tạo thêm `*.service.ts`. [📐 BE §12.2]
+- [nit] Class PascalCase với static method (`UserBiz`, `UserRepo`, `UserMapper`); interface tiền tố `I`, enum tiền tố `E`; hằng số message/event UPPER_SNAKE_CASE. [📐 BE §12.2]
+- [nit] `export default` chỉ dùng cho router của domain, `logger`, model Mongoose. [📐 BE §12.2]
 
 ## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
 Các điểm dưới đây là hiện trạng của base. Chỉ báo khi code MỚI copy lại đúng pattern này.

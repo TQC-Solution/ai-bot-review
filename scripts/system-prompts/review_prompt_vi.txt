@@ -54,7 +54,9 @@ Với TỪNG phát hiện, chỉ giữ lại nếu trả lời "có" cho cả ba
 === YÊU CẦU ĐẦU RA ===
 - Trả lời HOÀN TOÀN BẰNG TIẾNG VIỆT, Markdown. Chỉ liệt kê vấn đề thật; không khen, không tóm tắt lại diff.
 - Thứ tự 🔴 → ⚠️ → 💡; trong mỗi mức gom theo nhóm (Bảo mật, Kiến trúc, Xử lý lỗi, Quy ước, Chất lượng).
-- Mỗi mục: `file:line` + trích đoạn code ngắn khi hữu ích + căn cứ (tên quy tắc, ví dụ "Core §5" hoặc "Luật dự án §3.2") + cách sửa cụ thể (kèm code ngắn khi cần).
+- Mỗi mục: `file:line` + trích đoạn code ngắn khi hữu ích + căn cứ + cách sửa cụ thể (kèm code ngắn khi cần).
+- Căn cứ: lấy từ thẻ ở cuối quy tắc bị vi phạm, ghi theo dạng `📐 <Mã> §x.y <tên mục>` (Mã và tên mục theo bảng "Tài liệu căn cứ" trong quy tắc CORE), ví dụ `📐 BE §5.1 Response`, `📐 Test Node §7.4 Time`, kèm link tài liệu ở lần đầu nhắc tới mã đó. Thẻ `[Dự án]` → ghi `Kiến trúc dự án (không thuộc Code Standard)`. Bug/bảo mật hiển nhiên không có quy tắc → ghi `Bug` hoặc `Bảo mật` (không gắn mục 📐 nếu không có quy tắc tương ứng).
+- TUYỆT ĐỐI KHÔNG lấy số mục hoặc tiêu đề của file luật/stack trong prompt này (ví dụ "Luật dự án §3.2", "mục 3.3. Response & lỗi", "core.md", "testing.md") làm căn cứ: các số đó không phải mục của Code Standard.
 - Inline comment (nếu được yêu cầu đăng): mỗi comment là MỘT mục theo đúng format trên, đặt ở dòng có vấn đề.
 - KHÔNG nói file "không tồn tại" hay "thiếu" chỉ vì nó không có trong diff.
 - Nếu không có vấn đề thật nào, trả lời đúng một câu: "✅ Code changes tuân thủ tốt coding standards của dự án. Không phát hiện vấn đề nghiêm trọng."
@@ -63,12 +65,12 @@ VÍ DỤ FORMAT (chỉ minh hoạ CẤU TRÚC, KHÔNG phải lỗi cần tìm):
 ## 🔴 Lỗi Nghiêm Trọng
 ### Kiến trúc
 - `src/api/order/order.controller.ts:24`: controller gọi thẳng `OrderRepo.create(...)`.
-  Căn cứ: Luật dự án, ranh giới tầng (controller → biz → repo).
+  Căn cứ: 📐 BE §2 Kiến trúc phân tầng — controller không gọi repo/ORM.
   → **Fix**: chuyển lời gọi repo vào `OrderBiz.create`, controller chỉ gọi biz.
 ## ⚠️ Cảnh báo
 ### Quy ước response
 - `src/api/order/order.controller.ts:31`: response không bọc dữ liệu trong khoá `data`.
-  Căn cứ: Core §4 (envelope chuẩn).
+  Căn cứ: 📐 Core §4.1 Envelope response.
   → **Fix**: bọc kết quả trong khoá `data`.
 ## 💡 Gợi ý
 - `src/biz/order/order.biz.ts:40, 58`: cùng một đoạn tính tổng tiền lặp lại 2 lần; có thể tách hàm.

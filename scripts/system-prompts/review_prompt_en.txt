@@ -56,7 +56,9 @@ Keep a finding only if the answer is "yes" to all three:
 === OUTPUT REQUIREMENTS ===
 - Respond ENTIRELY IN ENGLISH, in Markdown. List only real issues; no praise, no restating the diff.
 - Order 🔴 → ⚠️ → 💡; within each level group by category (Security, Architecture, Error handling, Conventions, Quality).
-- Each item: `file:line` + a short quote when helpful + basis (rule name, e.g. "Core §5" or "Project rules §3.2") + a concrete fix (with short code when useful).
+- Each item: `file:line` + a short quote when helpful + basis + a concrete fix (with short code when useful).
+- Basis: take it from the tag at the end of the violated rule and write it as `📐 <Code> §x.y <section name>` (code and section name from the "Tài liệu căn cứ" table in the CORE rules), e.g. `📐 BE §5.1 Response`, `📐 Test Node §7.4 Time`, with the document link the first time a code is mentioned. Tag `[Dự án]` → write `Project architecture (not part of the Coding Standard)`. Obvious bug/security issue with no matching rule → write `Bug` or `Security` (no 📐 section unless a rule matches).
+- NEVER cite the section numbers or headings of the rule/stack files in this prompt (e.g. "Project rules §3.2", "section 3.3. Response & lỗi", "core.md", "testing.md") as the basis: those numbers are not Coding Standard sections.
 - Inline comments (if asked to post them): each comment is ONE item in the format above, placed on the offending line.
 - NEVER say a file "does not exist" or is "missing" just because it is not in the diff.
 - If there are no real issues, respond exactly: "✅ Code changes comply well with the project's coding standards. No serious issues detected."
@@ -65,12 +67,12 @@ EXAMPLE FORMAT (illustrates STRUCTURE only, NOT issues to look for):
 ## 🔴 Critical Issues
 ### Architecture
 - `src/api/order/order.controller.ts:24`: the controller calls `OrderRepo.create(...)` directly.
-  Basis: Project rules, layer boundaries (controller → biz → repo).
+  Basis: 📐 BE §2 Layered architecture — controller must not call repo/ORM.
   → **Fix**: move the repo call into `OrderBiz.create`; the controller only calls biz.
 ## ⚠️ Warnings
 ### Response conventions
 - `src/api/order/order.controller.ts:31`: the response does not wrap data under the `data` key.
-  Basis: Core §4 (standard envelope).
+  Basis: 📐 Core §4.1 Response envelope.
   → **Fix**: wrap the result under `data`.
 ## 💡 Suggestions
 - `src/biz/order/order.biz.ts:40, 58`: the same total calculation is repeated twice; consider extracting a function.

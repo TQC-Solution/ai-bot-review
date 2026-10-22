@@ -20,32 +20,32 @@ TypeScript, Express, MongoDB/Mongoose; TypeORM (PostgreSQL) cho một số modul
 ## 3. Luật review
 
 ### 3.1. Auth, quyền, validate
-- [chặn merge] Route mới/sửa trong `src/api` thao tác dữ liệu người dùng/admin mà thiếu `AuthMiddleware.requireAuth`/`authorization`/role như route cùng domain.
-- [chặn merge] Diff gỡ validation hoặc kiểm tra quyền hiện có mà không thay thế.
-- [cảnh báo] Endpoint mới nhận input không dùng `express-validation` + validator như domain cùng loại.
+- [chặn merge] Route mới/sửa trong `src/api` thao tác dữ liệu người dùng/admin mà thiếu `AuthMiddleware.requireAuth`/`authorization`/role như route cùng domain. [📐 BE §3.1; Core §5]
+- [chặn merge] Diff gỡ validation hoặc kiểm tra quyền hiện có mà không thay thế. [📐 BE §3.2; Core §5]
+- [cảnh báo] Endpoint mới nhận input không dùng `express-validation` + validator như domain cùng loại. [📐 BE §3.2]
 
 ### 3.2. Tầng & dữ liệu
-- [cảnh báo] Controller chứa query DB phức tạp hoặc logic nghiệp vụ dài, khi domain đã có repo/service trong `src/biz` — KHÔNG báo nếu domain cũ chưa theo pattern đó và thay đổi nhỏ.
-- [chặn merge] Đổi entity TypeORM (cột/bảng) không có migration; `synchronize: true` ở môi trường thật; migration thiếu `down`.
-- [cảnh báo] Đổi tên collection/model/field Mongo đang dùng mà PR không có kế hoạch migrate dữ liệu.
-- [cảnh báo] Gọi dịch vụ ngoài (GAM, Cloudflare, Telegram) trực tiếp trong controller thay vì `src/services`.
+- [cảnh báo] Controller chứa query DB phức tạp hoặc logic nghiệp vụ dài, khi domain đã có repo/service trong `src/biz` — KHÔNG báo nếu domain cũ chưa theo pattern đó và thay đổi nhỏ. [📐 BE §2]
+- [chặn merge] Đổi entity TypeORM (cột/bảng) không có migration; `synchronize: true` ở môi trường thật; migration thiếu `down`. [📐 BE §6.2, suy ra]
+- [cảnh báo] Đổi tên collection/model/field Mongo đang dùng mà PR không có kế hoạch migrate dữ liệu. [Dự án]
+- [cảnh báo] Gọi dịch vụ ngoài (GAM, Cloudflare, Telegram) trực tiếp trong controller thay vì `src/services`. [Dự án]
 
 ### 3.3. Response, Swagger, vận hành
-- [cảnh báo] Response/error mới khác format controller/middleware cùng domain.
-- [cảnh báo] API public cho web thêm/đổi mà không cập nhật schema/path Swagger của domain đang có tài liệu — CHỈ khi xác minh được domain có Swagger.
-- [cảnh báo] Job/worker/cron mới không idempotent, có thể chạy lặp side effect (gửi email, thanh toán, ghi report).
-- [cảnh báo] Thay đổi luồng payment/report mà PR không mô tả phạm vi — dạng câu hỏi.
+- [cảnh báo] Response/error mới khác format controller/middleware cùng domain. [📐 BE §5.1]
+- [cảnh báo] API public cho web thêm/đổi mà không cập nhật schema/path Swagger của domain đang có tài liệu — CHỈ khi xác minh được domain có Swagger. [Dự án]
+- [cảnh báo] Job/worker/cron mới không idempotent, có thể chạy lặp side effect (gửi email, thanh toán, ghi report). [📐 BE §8]
+- [cảnh báo] Thay đổi luồng payment/report mà PR không mô tả phạm vi — dạng câu hỏi. [Dự án]
 
 ### 3.4. Cấu hình & bảo mật
-- [chặn merge] Hardcode token/credential.
-- [cảnh báo] Hardcode URL; đọc `process.env` ngoài `src/config/environment.ts`.
+- [chặn merge] Hardcode token/credential. [📐 Core §5]
+- [cảnh báo] Hardcode URL; đọc `process.env` ngoài `src/config/environment.ts`. [📐 BE §9.2]
 
 ### Test
 Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
 - Test theo pattern domain gần nhất; không yêu cầu đổi cấu trúc test cũ.
 
 ## 4. Quy ước đặt tên
-- [nit] Theo pattern file của domain gần nhất.
+- [nit] Theo pattern file của domain gần nhất. [Dự án]
 
 ## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
 - Domain cũ chưa tách service/repository: không yêu cầu tách khi PR chỉ sửa nhỏ.

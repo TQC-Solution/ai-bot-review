@@ -17,31 +17,31 @@ Ba tầng (Dependency Inversion): **Public** (những gì app tích hợp thấy
 ## 3. Luật review
 
 ### 3.1. Public API & access control
-- [chặn merge] Đổi/xoá signature public trong `/core/api`, `/core/handles`, `/core/protocols` mà PR không ghi là breaking change có chủ đích.
-- [cảnh báo] Thêm requirement vào protocol public không có default implementation.
-- [cảnh báo] Type trong `/core/models`, `/core/task`, `/core/services`, `/core/utils`, `/core/extensions`, `/layouts` khai báo `public`/`open`, hoặc lộ ra signature public.
-- [cảnh báo] Type trong `/core/api`, `/core/handles`, `/core/protocols` dùng bởi app nhưng không `public`/`open` (app không truy cập được) — CHỈ khi type MỚI.
-- [cảnh báo] Logic nghiệp vụ phức tạp đặt trong lớp public thay vì uỷ quyền xuống core.
+- [chặn merge] Đổi/xoá signature public trong `/core/api`, `/core/handles`, `/core/protocols` mà PR không ghi là breaking change có chủ đích. [📐 SDK §4.1; SDK §1.1]
+- [cảnh báo] Thêm requirement vào protocol public không có default implementation. [📐 SDK §1.1]
+- [cảnh báo] Type trong `/core/models`, `/core/task`, `/core/services`, `/core/utils`, `/core/extensions`, `/layouts` khai báo `public`/`open`, hoặc lộ ra signature public. [📐 SDK §4.1]
+- [cảnh báo] Type trong `/core/api`, `/core/handles`, `/core/protocols` dùng bởi app nhưng không `public`/`open` (app không truy cập được) — CHỈ khi type MỚI. [📐 SDK §4.1]
+- [cảnh báo] Logic nghiệp vụ phức tạp đặt trong lớp public thay vì uỷ quyền xuống core. [📐 SDK §4.1]
 
 ### 3.2. Adapter & module boundary
-- [chặn merge] Adapter import/gọi adapter khác; core gọi trực tiếp class cụ thể của một adapter thay vì qua `/core/base`.
-- [cảnh báo] Adapter mới không kế thừa class/protocol trong `/core/base`; adapter giao tiếp ngược về core không qua protocol.
-- [cảnh báo] Adapter tự quyết định waterfall/bidding thay vì `/core/adapter`.
+- [chặn merge] Adapter import/gọi adapter khác; core gọi trực tiếp class cụ thể của một adapter thay vì qua `/core/base`. [📐 SDK §2]
+- [cảnh báo] Adapter mới không kế thừa class/protocol trong `/core/base`; adapter giao tiếp ngược về core không qua protocol. [📐 SDK §2]
+- [cảnh báo] Adapter tự quyết định waterfall/bidding thay vì `/core/adapter`. [📐 SDK §2]
 
 ### 3.3. Memory, threading
-- [chặn merge] Retain cycle: closure lưu lại capture `self` mạnh; delegate không `weak`.
-- [chặn merge] Gọi delegate/callback cho app hoặc cập nhật UI ngoài main thread.
-- [chặn merge] Timer/observer mới không huỷ khi ad bị destroy/deinit.
-- [cảnh báo] Có khả năng gọi callback 2 lần hoặc bỏ sót callback lỗi.
+- [chặn merge] Retain cycle: closure lưu lại capture `self` mạnh; delegate không `weak`. [📐 SDK §1.3]
+- [chặn merge] Gọi delegate/callback cho app hoặc cập nhật UI ngoài main thread. [📐 SDK §1.3]
+- [chặn merge] Timer/observer mới không huỷ khi ad bị destroy/deinit. [📐 SDK §1.3]
+- [cảnh báo] Có khả năng gọi callback 2 lần hoặc bỏ sót callback lỗi. [📐 SDK §1.3]
 
 ### 3.4. Cấu hình, log, bảo mật
-- [chặn merge] Log IDFA/token/credential/PII; credential trong source.
-- [cảnh báo] Hardcode URL/endpoint thay vì cấu hình trong `/Enviroments` hoặc `/testmode`.
-- [cảnh báo] Log không qua cờ debug của SDK; `print`/`NSLog` trong code phát hành.
-- [cảnh báo] Network request đặt ngoài `/core/task`; truy cập hệ thống (IDFA, network info) ngoài `/core/services`.
+- [chặn merge] Log IDFA/token/credential/PII; credential trong source. [📐 SDK §1.4; SDK §1.5]
+- [cảnh báo] Hardcode URL/endpoint thay vì cấu hình trong `/Enviroments` hoặc `/testmode`. [📐 SDK §1.5]
+- [cảnh báo] Log không qua cờ debug của SDK; `print`/`NSLog` trong code phát hành. [📐 SDK §1.4]
+- [cảnh báo] Network request đặt ngoài `/core/task`; truy cập hệ thống (IDFA, network info) ngoài `/core/services`. [📐 SDK §4.1]
 
 ## 4. Quy ước đặt tên
-- [nit] Type PascalCase, method/biến camelCase; protocol listener theo mẫu `XxxDelegate`/`XxxListener`.
+- [nit] Type PascalCase, method/biến camelCase; protocol listener theo mẫu `XxxDelegate`/`XxxListener`. [📐 Core §2]
 
 ## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
 - Tên thư mục `/AdpterAppLovin`, `/Enviroments` sai chính tả là có sẵn; KHÔNG đề xuất đổi tên (ảnh hưởng project/build).

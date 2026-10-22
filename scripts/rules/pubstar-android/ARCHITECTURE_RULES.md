@@ -34,43 +34,43 @@ PubStarAd.loadAd / loadAndShowAd → GetAdModelTask → (PubStarAdConfigCache | 
 ## 3. Luật review
 
 ### 3.1. Public API & visibility
-- [chặn merge] Đổi/xoá package, class, signature public (class/listener/config app dùng trực tiếp) mà PR không ghi là breaking change có chủ đích.
-- [cảnh báo] Type internal lộ trong signature public; `public` hoá class internal để gọi chéo (Kotlin mặc định `internal`, Java package-private).
-- [cảnh báo] API mới sửa signature cũ thay vì overload/builder + deprecate; Public API chứa logic nghiệp vụ nặng.
+- [chặn merge] Đổi/xoá package, class, signature public (class/listener/config app dùng trực tiếp) mà PR không ghi là breaking change có chủ đích. [📐 SDK §1.1]
+- [cảnh báo] Type internal lộ trong signature public; `public` hoá class internal để gọi chéo (Kotlin mặc định `internal`, Java package-private). [📐 SDK §3.2]
+- [cảnh báo] API mới sửa signature cũ thay vì overload/builder + deprecate; Public API chứa logic nghiệp vụ nặng. [📐 SDK §1.1]
 
 ### 3.2. Module boundary
-- [chặn merge] Core phụ thuộc adapter publish (`project(":PubStar*Adapter")`, import `io.pubstar.mediation.adapter.*`); adapter A phụ thuộc adapter B.
-- [chặn merge] Core import SDK quảng cáo bên thứ ba (trừ case đã duyệt); logic riêng một network đặt trong Core.
-- [cảnh báo] Adapter tự hiện thực waterfall/passback/refresh thay vì để Core quyết định.
-- [cảnh báo] Logic SDK đặt trong `:app`.
+- [chặn merge] Core phụ thuộc adapter publish (`project(":PubStar*Adapter")`, import `io.pubstar.mediation.adapter.*`); adapter A phụ thuộc adapter B. [📐 SDK §3.4; SDK §2]
+- [chặn merge] Core import SDK quảng cáo bên thứ ba (trừ case đã duyệt); logic riêng một network đặt trong Core. [📐 SDK §3.4; SDK §2]
+- [cảnh báo] Adapter tự hiện thực waterfall/passback/refresh thay vì để Core quyết định. [📐 SDK §2]
+- [cảnh báo] Logic SDK đặt trong `:app`. [📐 SDK §3.1]
 
 ### 3.3. Không gọi controller từ nội bộ `:Pubstar`
-- [chặn merge] Trong `Pubstar/src` (trừ `PubStarAd.kt` và ngoại lệ ở §5) gọi `getAdController().load|show|loadAndShow|isReady` hoặc `PubStarAdManager.getAdController()`.
-- [chặn merge] Tạo `*Helper`/`*Bridge`/extension bọc controller; cast sang `PubStarAdControllerHelper`; adapter nhúng trong core gọi `loadAndShow` thay vì `AdNet` → `BaseAd`.
-- [cảnh báo] Mediation native mới không mở rộng qua `NativeAdRequest`/SPI `PubStarNativeMediationBridge` mà thêm wrapper controller.
+- [chặn merge] Trong `Pubstar/src` (trừ `PubStarAd.kt` và ngoại lệ ở §5) gọi `getAdController().load|show|loadAndShow|isReady` hoặc `PubStarAdManager.getAdController()`. [📐 SDK §3.3]
+- [chặn merge] Tạo `*Helper`/`*Bridge`/extension bọc controller; cast sang `PubStarAdControllerHelper`; adapter nhúng trong core gọi `loadAndShow` thay vì `AdNet` → `BaseAd`. [📐 SDK §3.3]
+- [cảnh báo] Mediation native mới không mở rộng qua `NativeAdRequest`/SPI `PubStarNativeMediationBridge` mà thêm wrapper controller. [📐 SDK §3.3]
 
-### 3.4. Vùng partner flow & CRITICAL (§4)
-- [chặn merge] Đổi ngữ nghĩa magic value của `AdNet` (`timeDelay == -1`, `timeOut`/`maxShow <= 0`, `maxLoadTime`, `configId`, `isChangeRefresh`).
-- [chặn merge] Gộp `loadAd` + `onGetAdModelSuccess` thành một hàm; reorder `adNets`; xoá `synchronized`/`sessionId`/`WeakReference` của refresh scheduler mà không có thay thế.
-- [chặn merge] Lỗi mới không chọn rõ passback (`rejectList`) hay terminal (`callReject`/`NO_AD`).
-- [cảnh báo] Đổi URL `GetAdModelTask` hoặc timeout 20s mà PR không ghi đã phối hợp backend/product.
-- [cảnh báo] PR sửa symbol CRITICAL mà mô tả PR không có kế hoạch test §4.3 — dạng câu hỏi.
-- [cảnh báo] PR sửa symbol HIGH (§4.2) mà không mô tả test hành vi — dạng câu hỏi.
+### 3.4. Vùng partner flow & CRITICAL
+- [chặn merge] Đổi ngữ nghĩa magic value của `AdNet` (`timeDelay == -1`, `timeOut`/`maxShow <= 0`, `maxLoadTime`, `configId`, `isChangeRefresh`). [📐 SDK §6.3]
+- [chặn merge] Gộp `loadAd` + `onGetAdModelSuccess` thành một hàm; reorder `adNets`; xoá `synchronized`/`sessionId`/`WeakReference` của refresh scheduler mà không có thay thế. [📐 SDK §7.3]
+- [chặn merge] Lỗi mới không chọn rõ passback (`rejectList`) hay terminal (`callReject`/`NO_AD`). [📐 SDK §6]
+- [cảnh báo] Đổi URL `GetAdModelTask` hoặc timeout 20s mà PR không ghi đã phối hợp backend/product. [📐 SDK §7.1]
+- [cảnh báo] PR sửa symbol CRITICAL mà mô tả PR không có kế hoạch test §4.3 — dạng câu hỏi. [📐 SDK §7.4; SDK §7.5]
+- [cảnh báo] PR sửa symbol HIGH (§4.2) mà không mô tả test hành vi — dạng câu hỏi. [📐 SDK §7.2; SDK §7.4]
 
 ### 3.5. Threading, lifecycle, memory
-- [chặn merge] Giữ `Activity`/`View` quá lifecycle (field static, singleton, callback dài hạn); network/disk trên main thread.
-- [chặn merge] `Handler`/coroutine/timer timeout mới không được cancel khi `destroy`.
-- [cảnh báo] Callback UI không về main thread; state machine load/show có thể double-callback.
+- [chặn merge] Giữ `Activity`/`View` quá lifecycle (field static, singleton, callback dài hạn); network/disk trên main thread. [📐 SDK §3.5; SDK §1.3]
+- [chặn merge] `Handler`/coroutine/timer timeout mới không được cancel khi `destroy`. [📐 SDK §1.3]
+- [cảnh báo] Callback UI không về main thread; state machine load/show có thể double-callback. [📐 SDK §3.5; SDK §1.3]
 
 ### 3.6. Lỗi, log, cấu hình, build
-- [chặn merge] Log PII/credential/token/GAID; credential trong source.
-- [cảnh báo] Public API throw khi không phải dùng sai rõ ràng; adapter không map lỗi network về error code Core.
-- [cảnh báo] Log không theo `isShowLog`/`isDebug`.
-- [cảnh báo] Hardcode URL production thay vì `BuildConfig`/`local.properties`.
-- [cảnh báo] Commit `*/build/`, `BuildConfig.java`, `R.jar`, `R.txt`.
-- [cảnh báo] Xoá keep rule đang cần; rule mới không đặt trong `consumer-rules.pro` (ưu tiên) hoặc `proguard-rules.pro` đúng module; đổi resource id đang dùng.
-- [cảnh báo] Logic mediation trong class layout/view.
-- [nit] Dependency bên thứ ba dùng `implementation` khi `compileOnly` phù hợp cho publish.
+- [chặn merge] Log PII/credential/token/GAID; credential trong source. [📐 SDK §1.4; SDK §1.5]
+- [cảnh báo] Public API throw khi không phải dùng sai rõ ràng; adapter không map lỗi network về error code Core. [📐 SDK §1.4]
+- [cảnh báo] Log không theo `isShowLog`/`isDebug`. [📐 SDK §1.4]
+- [cảnh báo] Hardcode URL production thay vì `BuildConfig`/`local.properties`. [📐 SDK §3.6]
+- [cảnh báo] Commit `*/build/`, `BuildConfig.java`, `R.jar`, `R.txt`. [📐 SDK §1.5]
+- [cảnh báo] Xoá keep rule đang cần; rule mới không đặt trong `consumer-rules.pro` (ưu tiên) hoặc `proguard-rules.pro` đúng module; đổi resource id đang dùng. [📐 SDK §3.6]
+- [cảnh báo] Logic mediation trong class layout/view. [📐 SDK §1.6]
+- [nit] Dependency bên thứ ba dùng `implementation` khi `compileOnly` phù hợp cho publish. [📐 SDK §1.2]
 
 ## 4. Change control
 ### 4.1. CRITICAL symbols

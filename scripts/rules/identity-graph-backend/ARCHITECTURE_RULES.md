@@ -29,45 +29,45 @@ Stack: **Gin · pgxpool (PostgreSQL, DB `identity_graph`) · Redis · Google Wir
 ## 3. Luật review
 
 ### 3.1. Ranh giới tầng — `cmd → app/api → service → identity → infrastructure`
-- [chặn merge] Controller hoặc `service/` query DB/Redis trực tiếp; SQL nằm ngoài `identity/repository.go` (hoặc file repository tương đương).
-- [chặn merge] `identity/` import `gin` (ngoại lệ duy nhất: `collector.go`).
-- [chặn merge] Tạo kết nối ad-hoc (`pgx.Connect`, `redis.NewClient`) thay vì dùng `pgxpool.Pool`/client từ Wire.
-- [chặn merge] Sửa tay `wire_gen.go`.
-- [cảnh báo] Scoring/logic định danh đặt ngoài `internal/identity/`.
+- [chặn merge] Controller hoặc `service/` query DB/Redis trực tiếp; SQL nằm ngoài `identity/repository.go` (hoặc file repository tương đương). [📐 Go §4.2]
+- [chặn merge] `identity/` import `gin` (ngoại lệ duy nhất: `collector.go`). [📐 Go §2]
+- [chặn merge] Tạo kết nối ad-hoc (`pgx.Connect`, `redis.NewClient`) thay vì dùng `pgxpool.Pool`/client từ Wire. [📐 Go §2.1; Go §8]
+- [chặn merge] Sửa tay `wire_gen.go`. [📐 Go §2.1]
+- [cảnh báo] Scoring/logic định danh đặt ngoài `internal/identity/`. [Dự án]
 
 ### 3.2. Hot path `POST /v1/user-idt` (≤ 80ms end-to-end)
-- [chặn merge] Query mới trên hot path không dùng index (full scan, `LIKE '%...'`, unbounded fan-out, N+1 trong vòng lặp).
-- [chặn merge] Ghi audit event đồng bộ trong transaction hoặc làm fail request khi audit lỗi (phải dispatch qua channel, lỗi chỉ `log.Warn`).
-- [cảnh báo] Bỏ bước Redis L1: tra Postgres trước khi check cache `idt:sig:{type}:{value}`; cache miss không warm lại Redis.
-- [cảnh báo] Thêm gọi mạng/IO đồng bộ mới trên hot path không có timeout.
-- [cảnh báo] Redis lỗi làm panic/fail request thay vì degrade sang Postgres-only.
+- [chặn merge] Query mới trên hot path không dùng index (full scan, `LIKE '%...'`, unbounded fan-out, N+1 trong vòng lặp). [Dự án]
+- [chặn merge] Ghi audit event đồng bộ trong transaction hoặc làm fail request khi audit lỗi (phải dispatch qua channel, lỗi chỉ `log.Warn`). [Dự án]
+- [cảnh báo] Bỏ bước Redis L1: tra Postgres trước khi check cache `idt:sig:{type}:{value}`; cache miss không warm lại Redis. [Dự án]
+- [cảnh báo] Thêm gọi mạng/IO đồng bộ mới trên hot path không có timeout. [📐 Go §7]
+- [cảnh báo] Redis lỗi làm panic/fail request thay vì degrade sang Postgres-only. [Dự án]
 
 ### 3.3. Pipeline & scoring
-- [chặn merge] Đổi thứ tự 4 bước hoặc logic short-circuit (deterministic trước, probabilistic sau) mà PR không ghi rõ lý do.
-- [cảnh báo] Đổi ngưỡng scoring (≥80/75 merge, ≥40/60 link), weight hoặc TTL mà PR không ghi rõ yêu cầu.
-- [cảnh báo] Signal mới không thêm đủ 3 chỗ trong `signal.go`: `SignalValueMap()`, `signalWeightsV2`, `signalTTLDaysV2`; hardcode weight/TTL ngoài các map này.
-- [cảnh báo] Đổi thứ tự ưu tiên `TemporaryID`.
+- [chặn merge] Đổi thứ tự 4 bước hoặc logic short-circuit (deterministic trước, probabilistic sau) mà PR không ghi rõ lý do. [Dự án]
+- [cảnh báo] Đổi ngưỡng scoring (≥80/75 merge, ≥40/60 link), weight hoặc TTL mà PR không ghi rõ yêu cầu. [Dự án]
+- [cảnh báo] Signal mới không thêm đủ 3 chỗ trong `signal.go`: `SignalValueMap()`, `signalWeightsV2`, `signalTTLDaysV2`; hardcode weight/TTL ngoài các map này. [Dự án]
+- [cảnh báo] Đổi thứ tự ưu tiên `TemporaryID`. [Dự án]
 
 ### 3.4. Contract & dữ liệu
-- [chặn merge] Đổi shape response `{ node_id, action, step }` (contract với JS SDK).
-- [chặn merge] Lưu hoặc log raw PII/payload (email, IP thô, cookie id gốc khi chưa hash); chỉ lưu ID đã hash/pseudonymize.
-- [cảnh báo] Đổi schema bảng (`identity_nodes`, `identity_signals`...) mà không có migration mới.
-- [cảnh báo] Job mới trong worker không guard bằng advisory lock (`PgLocker`) khi có thể chạy nhiều instance.
+- [chặn merge] Đổi shape response `{ node_id, action, step }` (contract với JS SDK). [📐 Core §4.3]
+- [chặn merge] Lưu hoặc log raw PII/payload (email, IP thô, cookie id gốc khi chưa hash); chỉ lưu ID đã hash/pseudonymize. [📐 Go §11; Core §7]
+- [cảnh báo] Đổi schema bảng (`identity_nodes`, `identity_signals`...) mà không có migration mới. [Dự án]
+- [cảnh báo] Job mới trong worker không guard bằng advisory lock (`PgLocker`) khi có thể chạy nhiều instance. [Dự án]
 
 ### 3.5. Lỗi, context, cấu hình
-- [chặn merge] `panic` trong logic nghiệp vụ/pipeline.
-- [cảnh báo] Lỗi không bọc `fmt.Errorf("...: %w", err)`; so sánh lỗi bằng chuỗi.
-- [cảnh báo] Hardcode URL, DSN, credential thay vì `internal/config/config.go`.
-- [cảnh báo] Hàm I/O mới không nhận `context.Context`; goroutine mới không dừng theo context.
+- [chặn merge] `panic` trong logic nghiệp vụ/pipeline. [📐 Go §6]
+- [cảnh báo] Lỗi không bọc `fmt.Errorf("...: %w", err)`; so sánh lỗi bằng chuỗi. [📐 Go §6]
+- [cảnh báo] Hardcode URL, DSN, credential thay vì `internal/config/config.go`. [📐 Go §11]
+- [cảnh báo] Hàm I/O mới không nhận `context.Context`; goroutine mới không dừng theo context. [📐 Go §7]
 
 ### 3.6. Test
 Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
-- [cảnh báo] Sửa một bước pipeline, `ComputeScore`, ngưỡng hoặc map trong `signal.go` mà PR không có test cho bước/ngưỡng đó (match → short-circuit; không match → bước sau) — CHỈ khi thay đổi đổi hành vi (thêm/sửa nhánh, điều kiện, ngưỡng, kết quả) VÀ PR không thêm/sửa case test nào cho phần đó VÀ (nếu đọc được repo) test hiện có chưa kiểm hành vi mới; refactor không đổi hành vi thì KHÔNG báo.
-- [cảnh báo] Test cache không có cả nhánh Redis hit, miss (warm lại) và Redis lỗi (degrade sang Postgres).
-- [cảnh báo] Unit test dùng `pgxpool`/Redis thật thay vì mock repository/cache; integration test thiếu `//go:build integration`.
+- [cảnh báo] Sửa một bước pipeline, `ComputeScore`, ngưỡng hoặc map trong `signal.go` mà PR không có test cho bước/ngưỡng đó (match → short-circuit; không match → bước sau) — CHỈ khi thay đổi đổi hành vi (thêm/sửa nhánh, điều kiện, ngưỡng, kết quả) VÀ PR không thêm/sửa case test nào cho phần đó VÀ (nếu đọc được repo) test hiện có chưa kiểm hành vi mới; refactor không đổi hành vi thì KHÔNG báo. [📐 Test Go §7.1]
+- [cảnh báo] Test cache không có cả nhánh Redis hit, miss (warm lại) và Redis lỗi (degrade sang Postgres). [📐 Test Go §7.1]
+- [cảnh báo] Unit test dùng `pgxpool`/Redis thật thay vì mock repository/cache; integration test thiếu `//go:build integration`. [📐 Test Go §2.5; Test Go §3.2]
 
 ## 4. Quy ước đặt tên
-- [nit] Package chữ thường; file `snake_case.go`; struct PascalCase; constructor `NewXxx`; bảng/cột DB `snake_case`.
+- [nit] Package chữ thường; file `snake_case.go`; struct PascalCase; constructor `NewXxx`; bảng/cột DB `snake_case`. [📐 Go §12]
 
 ## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
 - `collector.go` import `gin` là có chủ đích.

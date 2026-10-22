@@ -26,41 +26,41 @@ GIVT-03 Malformed (`givt03/`) → GIVT-04 Prefetch (`givt04/`) → GIVT-01 Datac
 ## 3. Luật review
 
 ### 3.1. Ranh giới tầng — `cmd → app/api → service → db`
-- [chặn merge] Controller gọi Redis/DB trực tiếp; package pipeline/stage import `gin`.
-- [chặn merge] Sửa tay `wire_gen.go`.
-- [cảnh báo] Logic scoring/lọc đặt trong controller hoặc binding.
+- [chặn merge] Controller gọi Redis/DB trực tiếp; package pipeline/stage import `gin`. [📐 Go §2; Go §4.2]
+- [chặn merge] Sửa tay `wire_gen.go`. [📐 Go §2.1]
+- [cảnh báo] Logic scoring/lọc đặt trong controller hoặc binding. [📐 Go §3.3]
 
 ### 3.2. Pipeline
-- [chặn merge] Đổi thứ tự GIVT-03 → 04 → 01 → 02 → 05 → SIVT, hoặc thứ tự L0 → L1 → L2, mà PR không ghi rõ lý do.
-- [chặn merge] Stage GIVT fail mà không return sớm (vẫn chạy tiếp stage sau).
-- [chặn merge] Hot path dùng lock (`Mutex`) cho matcher GIVT-01/02 thay vì `atomic.Pointer`; reload bằng cách khởi tạo lại service thay vì `ReloadGIVT01()`/`ReloadGIVT02()`.
-- [chặn merge] Sửa `NormalizedPayload` sau khi parse (payload read-only trong pipeline; enrichment phải inject ở binding trước khi vào pipeline).
-- [cảnh báo] Output của stage không ghi vào đúng field của `TrafficPipelineContext`, hoặc truyền output rời giữa các stage.
-- [cảnh báo] Stage mới không append `FilterTrace` vào `ctx.Trace`; stage mới không có constant trong `ivt_enums.go`.
-- [cảnh báo] Signal SIVT mới không đủ 2 chỗ: `Extract*Signals()` (chỉ đọc payload) và `CheckSignals()` (đánh giá); đưa logic scoring vào Extract.
+- [chặn merge] Đổi thứ tự GIVT-03 → 04 → 01 → 02 → 05 → SIVT, hoặc thứ tự L0 → L1 → L2, mà PR không ghi rõ lý do. [Dự án]
+- [chặn merge] Stage GIVT fail mà không return sớm (vẫn chạy tiếp stage sau). [Dự án]
+- [chặn merge] Hot path dùng lock (`Mutex`) cho matcher GIVT-01/02 thay vì `atomic.Pointer`; reload bằng cách khởi tạo lại service thay vì `ReloadGIVT01()`/`ReloadGIVT02()`. [Dự án]
+- [chặn merge] Sửa `NormalizedPayload` sau khi parse (payload read-only trong pipeline; enrichment phải inject ở binding trước khi vào pipeline). [Dự án]
+- [cảnh báo] Output của stage không ghi vào đúng field của `TrafficPipelineContext`, hoặc truyền output rời giữa các stage. [Dự án]
+- [cảnh báo] Stage mới không append `FilterTrace` vào `ctx.Trace`; stage mới không có constant trong `ivt_enums.go`. [Dự án]
+- [cảnh báo] Signal SIVT mới không đủ 2 chỗ: `Extract*Signals()` (chỉ đọc payload) và `CheckSignals()` (đánh giá); đưa logic scoring vào Extract. [Dự án]
 
 ### 3.3. Scoring config
-- [chặn merge] Hardcode weight/threshold/hard floor trong module scoring thay vì `sivt/config.go`.
-- [cảnh báo] Đổi giá trị trong `sivt/config.go` mà PR không ghi rõ yêu cầu.
-- [cảnh báo] Module SIVT mới không thêm weight vào `sivt/config.go` hoặc không wire vào L1 weighted average.
+- [chặn merge] Hardcode weight/threshold/hard floor trong module scoring thay vì `sivt/config.go`. [📐 Go §11]
+- [cảnh báo] Đổi giá trị trong `sivt/config.go` mà PR không ghi rõ yêu cầu. [Dự án]
+- [cảnh báo] Module SIVT mới không thêm weight vào `sivt/config.go` hoặc không wire vào L1 weighted average. [Dự án]
 
 ### 3.4. Contract, lỗi, cấu hình
-- [chặn merge] Đổi shape response `{ action, sivt_risk_score, trace[] }` (contract với JS SDK).
-- [chặn merge] `panic` trong pipeline.
-- [cảnh báo] Redis snapshot GIVT-01/02 chưa có làm block hoặc panic thay vì PASS + `log.Warn`.
-- [cảnh báo] Hardcode URL, Redis addr, threshold động thay vì `internal/config/config.go`.
-- [cảnh báo] Lỗi không bọc `%w`; log raw IP/UA kèm định danh người dùng ở mức info.
+- [chặn merge] Đổi shape response `{ action, sivt_risk_score, trace[] }` (contract với JS SDK). [📐 Core §4.3]
+- [chặn merge] `panic` trong pipeline. [📐 Go §6]
+- [cảnh báo] Redis snapshot GIVT-01/02 chưa có làm block hoặc panic thay vì PASS + `log.Warn`. [Dự án]
+- [cảnh báo] Hardcode URL, Redis addr, threshold động thay vì `internal/config/config.go`. [📐 Go §11]
+- [cảnh báo] Lỗi không bọc `%w`; log raw IP/UA kèm định danh người dùng ở mức info. [📐 Go §6; Go §11]
 
 ### 3.5. Test
 Repo đã backfill unit test đạt coverage tối thiểu theo Test Standard: luật trong mục Test của `core.md` và `testing.md` của stack áp dụng đầy đủ cho code MỚI và thay đổi HÀNH VI. PR không đổi hành vi (refactor, đổi tên, docs, config, UI thuần...) không bị yêu cầu test.
-- [cảnh báo] Stage GIVT/module SIVT MỚI, hoặc sửa làm đổi kết quả lọc/điểm, mà PR không có test: input hợp lệ → PASS; input vi phạm → `NO_BID` + `FilterTrace` đúng rule code; với SIVT: điểm đúng theo weight trong `sivt/config.go` — CHỈ khi thay đổi đổi hành vi (thêm/sửa nhánh, điều kiện, ngưỡng, kết quả) VÀ PR không thêm/sửa case test nào cho phần đó VÀ (nếu đọc được repo) test hiện có chưa kiểm hành vi mới; refactor không đổi hành vi thì KHÔNG báo.
-- [cảnh báo] Test scoring hardcode weight/threshold thay vì đọc từ `sivt/config.go` (test sẽ không bắt được khi đổi config).
-- [nit] Thiếu case snapshot Redis chưa có → stage PASS cho GIVT-01/02.
+- [cảnh báo] Stage GIVT/module SIVT MỚI, hoặc sửa làm đổi kết quả lọc/điểm, mà PR không có test: input hợp lệ → PASS; input vi phạm → `NO_BID` + `FilterTrace` đúng rule code; với SIVT: điểm đúng theo weight trong `sivt/config.go` — CHỈ khi thay đổi đổi hành vi (thêm/sửa nhánh, điều kiện, ngưỡng, kết quả) VÀ PR không thêm/sửa case test nào cho phần đó VÀ (nếu đọc được repo) test hiện có chưa kiểm hành vi mới; refactor không đổi hành vi thì KHÔNG báo. [📐 Test Go §7.1]
+- [cảnh báo] Test scoring hardcode weight/threshold thay vì đọc từ `sivt/config.go` (test sẽ không bắt được khi đổi config). [Dự án]
+- [nit] Thiếu case snapshot Redis chưa có → stage PASS cho GIVT-01/02. [📐 Test Go §7.1]
 
 ## 4. Quy ước đặt tên
-- [nit] Package theo chức năng chữ thường (`givt01`, `sivtl1m1`); file `snake_case.go`; struct PascalCase.
-- [nit] Stage output là pointer (`*givtXX.Output`, `*sivtYY.Score`), nil khi stage chưa chạy.
-- [nit] Rule code `UPPER_SNAKE_CASE` có prefix stage (`GIVT_01_CLD_AZURE`, `GIVT_03_IP_BOGON`).
+- [nit] Package theo chức năng chữ thường (`givt01`, `sivtl1m1`); file `snake_case.go`; struct PascalCase. [📐 Go §12]
+- [nit] Stage output là pointer (`*givtXX.Output`, `*sivtYY.Score`), nil khi stage chưa chạy. [Dự án]
+- [nit] Rule code `UPPER_SNAKE_CASE` có prefix stage (`GIVT_01_CLD_AZURE`, `GIVT_03_IP_BOGON`). [Dự án]
 
 ## 5. Ngoại lệ / nợ kỹ thuật đã biết — KHÔNG báo trên code cũ
 - Chỉ 3 module L1 (M1–M3) đang active; M4–M6 chưa có — không báo "thiếu module".
